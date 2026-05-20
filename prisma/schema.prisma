@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ENUMS via string fields (SQLite no soporta enums nativos)
+// Role: ADMIN | CANCHA | CLIENTE
+// RecordingStatus: UPLOADING | READY | FAILED
+// PaymentType: RECORDING | DOWNLOAD
+// PaymentStatus: SIMULATED | PAID | FAILED
+// LogLevel: DEBUG | INFO | WARN | ERROR | AUDIT
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          String
+  createdAt     DateTime @default(now())
+
+  complex       Complex?  @relation("ComplexOwner")
+  claims        Claim[]
+  tokensCreated AccessToken[] @relation("TokenCreator")
+  logs          Log[]
+}
+
+model Complex {
+  id               String   @id @default(cuid())
+  name             String
+  address          String
+  ownerId          String   @unique
+  revenueSharePct  Int      @default(7000)   // 70.00% en basis points
+  createdAt        DateTime @default(now())
+
+  owner            User     @relation("ComplexOwner", fields: [ownerId], references: [id])
+  courts           Court[]
+}
+
+model Court {
+  id         String   @id @default(cuid())
+  name       String
+  complexId  String
+  createdAt  DateTime @default(now())
+
+  complex    Complex  @relation(fields: [complexId], references: [id], onDelete: Cascade)
+  recordings Recording[]
+
+  @@index([complexId])
+}
+
+model Recording {
+  id                String   @id @default(cuid())
+  courtId           String
+  title             String
+  recordedAt        DateTime
+  durationSec       Int      @default(0)
+  filePath          String
+  thumbnailPath     String?
+  priceCents        Int
+  downloadFeeCents  Int
+  status            String   @default("READY")
+  deletedAt         DateTime?
+  createdAt         DateTime @default(now())
+
+  court             Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  tokens            AccessToken[]
+  claims            Claim[]
+
+  @@index([courtId])
+  @@index([recordedAt])
+}
+
+model AccessToken {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  recordingId   String
+  maxUses       Int?
+  usedCount     Int       @default(0)
+  expiresAt     DateTime?
+  createdById   String
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+
+  recording     Recording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  createdBy     User      @relation("TokenCreator", fields: [createdById], references: [id])
+  claims        Claim[]
+
+  @@index([recordingId])
+  @@index([code])
+}
+
+model Claim {
+  id                 String    @id @default(cuid())
+  userId             String
+  recordingId        String
+  tokenId            String
+  claimedAt          DateTime  @default(now())
+  pricePaidCents     Int
+  hasDownloadAccess  Boolean   @default(false)
+  downloadPaidAt     DateTime?
+  downloadFeeCents   Int?
+  revokedAt          DateTime?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recording  Recording  @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  token      AccessToken @relation(fields: [tokenId], references: [id])
+  payments   Payment[]
+
+  @@index([userId])
+  @@index([recordingId])
+  @@index([userId, recordingId])
+}
+
+model Payment {
+  id           String   @id @default(cuid())
+  claimId      String
+  type         String
+  amountCents  Int
+  status       String   @default("SIMULATED")
+  externalRef  String?
+  createdAt    DateTime @default(now())
+
+  claim        Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+  @@index([createdAt])
+}
+
+model ConfigSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  level     String
+  message   String
+  context   String?   // JSON serializado
+  userId    String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([level])
+}
