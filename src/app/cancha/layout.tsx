@@ -12,6 +12,7 @@ export default async function CanchaLayout({ children }: { children: React.React
       nav={[
         { href: '/cancha/dashboard', label: 'Inicio' },
         { href: '/cancha/canchas', label: 'Canchas' },
+        { href: '/cancha/reservas', label: 'Reservas' },
         { href: '/cancha/grabaciones', label: 'Grabaciones' },
         { href: '/cancha/accesos', label: 'Accesos' },
         { href: '/cancha/metricas', label: 'Métricas' },

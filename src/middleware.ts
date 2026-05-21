@@ -7,8 +7,9 @@ const { auth } = NextAuth(authConfig);
 
 const PUBLIC_PATHS = new Set<string>(['/', '/login', '/register']);
 // /api/* hace su propio auth check internamente; el middleware no debe redirigir APIs a /login.
-// /claim/* es público (el deep link decide qué mostrar según sesión).
-const PUBLIC_PREFIXES = ['/_next', '/favicon', '/api/', '/claim/'];
+// /claim/* es deep link de canje (decide según sesión).
+// /s/* es viewer público de ShareLink (24h, sin cuenta).
+const PUBLIC_PREFIXES = ['/_next', '/favicon', '/api/', '/claim/', '/s/'];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

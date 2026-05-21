@@ -50,11 +50,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `El adicional debe estar entre 0 y ${formatCents(MAX_PRICE_CENTS)}.` }, { status: 400 });
   }
 
+  const recordedAt = new Date(parsed.data.recordedAt);
+
+  // Auto-vinculación con Reserva: matchea por court + recordedAt dentro de [startsAt, endsAt]
+  const matchingReservation = await prisma.reservation.findFirst({
+    where: {
+      courtId: court.id,
+      status: 'CONFIRMED',
+      startsAt: { lte: recordedAt },
+      endsAt: { gte: recordedAt },
+    },
+  });
+
   const rec = await prisma.recording.create({
     data: {
       courtId: court.id,
+      reservationId: matchingReservation?.id ?? null,
       title: parsed.data.title,
-      recordedAt: new Date(parsed.data.recordedAt),
+      recordedAt,
       durationSec: parsed.data.durationSec,
       filePath: parsed.data.filePath,
       priceCents,
@@ -63,6 +76,51 @@ export async function POST(req: Request) {
     },
   });
 
-  await logger.audit('Recording creada', { recordingId: rec.id, fileExists: exists }, session.user.id);
-  return NextResponse.json({ ok: true, id: rec.id, fileExists: exists });
+  // Si la reserva incluía video (bundle), creamos el Claim automáticamente
+  let autoClaimed = false;
+  if (matchingReservation && matchingReservation.includesVideo) {
+    let code = '';
+    const { newAccessCode } = await import('@/lib/tokens');
+    for (let i = 0; i < 5; i++) {
+      const c = newAccessCode();
+      const collide = await prisma.accessToken.findUnique({ where: { code: c } });
+      if (!collide) { code = c; break; }
+    }
+    if (!code) code = newAccessCode();
+
+    const synthetic = await prisma.accessToken.create({
+      data: {
+        code,
+        recordingId: rec.id,
+        kind: 'CANCHA',
+        maxUses: 1,
+        usedCount: 1,
+        isActive: false,
+        createdById: session.user.id,
+      },
+    });
+
+    await prisma.claim.create({
+      data: {
+        userId: matchingReservation.userId,
+        recordingId: rec.id,
+        tokenId: synthetic.id,
+        pricePaidCents: matchingReservation.videoPriceCents ?? priceCents,
+      },
+    });
+    autoClaimed = true;
+  }
+
+  await logger.audit('Recording creada', {
+    recordingId: rec.id, fileExists: exists,
+    reservationId: matchingReservation?.id ?? null, autoClaimed,
+  }, session.user.id);
+
+  return NextResponse.json({
+    ok: true,
+    id: rec.id,
+    fileExists: exists,
+    linkedReservationId: matchingReservation?.id ?? null,
+    autoClaimed,
+  });
 }

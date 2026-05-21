@@ -10,9 +10,12 @@ datasource db {
 // ENUMS via string fields (SQLite no soporta enums nativos)
 // Role: ADMIN | CANCHA | CLIENTE
 // RecordingStatus: UPLOADING | READY | FAILED
-// PaymentType: RECORDING | DOWNLOAD
-// PaymentStatus: SIMULATED | PAID | FAILED
+// PaymentType: RECORDING | DOWNLOAD | RESERVATION | VIDEO_BUNDLE | CASH_SALE
+// PaymentStatus: SIMULATED | PAID | FAILED | FREE
+// PaymentMethod: SIMULATED | CASH | CARD
 // LogLevel: DEBUG | INFO | WARN | ERROR | AUDIT
+// TokenKind: CANCHA | CLIENTE_SHARE | ADMIN_CASH
+// ReservationStatus: CONFIRMED | CANCELLED
 
 model User {
   id            String   @id @default(cuid())
@@ -25,6 +28,8 @@ model User {
   complex       Complex?  @relation("ComplexOwner")
   claims        Claim[]
   tokensCreated AccessToken[] @relation("TokenCreator")
+  reservations  Reservation[] @relation("UserReservations")
+  sharesCreated ShareLink[]   @relation("ShareCreator")
   logs          Log[]
 }
 
@@ -41,13 +46,18 @@ model Complex {
 }
 
 model Court {
-  id         String   @id @default(cuid())
-  name       String
-  complexId  String
-  createdAt  DateTime @default(now())
+  id                  String   @id @default(cuid())
+  name                String
+  complexId           String
+  slotDurationMin     Int      @default(60)
+  pricePerSlotCents   Int      @default(0)
+  openingHour         Int      @default(8)   // hora local 0-23
+  closingHour         Int      @default(23)  // hora local 0-23 (último slot inicia antes)
+  createdAt           DateTime @default(now())
 
-  complex    Complex  @relation(fields: [complexId], references: [id], onDelete: Cascade)
-  recordings Recording[]
+  complex      Complex       @relation(fields: [complexId], references: [id], onDelete: Cascade)
+  recordings   Recording[]
+  reservations Reservation[]
 
   @@index([complexId])
 }
@@ -55,6 +65,7 @@ model Court {
 model Recording {
   id                String   @id @default(cuid())
   courtId           String
+  reservationId     String?
   title             String
   recordedAt        DateTime
   durationSec       Int      @default(0)
@@ -66,24 +77,29 @@ model Recording {
   deletedAt         DateTime?
   createdAt         DateTime @default(now())
 
-  court             Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  tokens            AccessToken[]
-  claims            Claim[]
+  court        Court        @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  reservation  Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  tokens       AccessToken[]
+  claims       Claim[]
+  shareLinks   ShareLink[]
 
   @@index([courtId])
   @@index([recordedAt])
+  @@index([reservationId])
 }
 
 model AccessToken {
-  id            String    @id @default(cuid())
-  code          String    @unique
-  recordingId   String
-  maxUses       Int?
-  usedCount     Int       @default(0)
-  expiresAt     DateTime?
-  createdById   String
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
+  id                  String    @id @default(cuid())
+  code                String    @unique
+  recordingId         String
+  kind                String    @default("CANCHA")    // CANCHA | CLIENTE_SHARE | ADMIN_CASH
+  priceOverrideCents  Int?      // null → usa Recording.priceCents
+  maxUses             Int?
+  usedCount           Int       @default(0)
+  expiresAt           DateTime?
+  createdById         String
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
 
   recording     Recording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
   createdBy     User      @relation("TokenCreator", fields: [createdById], references: [id])
@@ -105,8 +121,8 @@ model Claim {
   downloadFeeCents   Int?
   revokedAt          DateTime?
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recording  Recording  @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recording  Recording   @relation(fields: [recordingId], references: [id], onDelete: Cascade)
   token      AccessToken @relation(fields: [tokenId], references: [id])
   payments   Payment[]
 
@@ -115,18 +131,63 @@ model Claim {
   @@index([userId, recordingId])
 }
 
-model Payment {
-  id           String   @id @default(cuid())
-  claimId      String
-  type         String
-  amountCents  Int
-  status       String   @default("SIMULATED")
-  externalRef  String?
-  createdAt    DateTime @default(now())
+model Reservation {
+  id               String   @id @default(cuid())
+  userId           String
+  courtId          String
+  startsAt         DateTime
+  endsAt           DateTime
+  status           String   @default("CONFIRMED")     // CONFIRMED | CANCELLED
+  slotPriceCents   Int                                // snapshot del precio de la cancha
+  includesVideo    Boolean  @default(false)           // si el cliente compró el video bundled
+  videoPriceCents  Int?                               // snapshot precio video bundled
+  cancelledAt      DateTime?
+  createdAt        DateTime @default(now())
 
-  claim        Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  user       User        @relation("UserReservations", fields: [userId], references: [id], onDelete: Cascade)
+  court      Court       @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  payments   Payment[]
+  recordings Recording[]
+
+  @@index([courtId, startsAt])
+  @@index([userId])
+  @@index([status])
+}
+
+model ShareLink {
+  id            String   @id @default(cuid())
+  token         String   @unique
+  recordingId   String
+  createdById   String
+  expiresAt     DateTime
+  isActive      Boolean  @default(true)
+  viewCount     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  recording     Recording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  createdBy     User      @relation("ShareCreator", fields: [createdById], references: [id])
+
+  @@index([token])
+  @@index([recordingId])
+  @@index([createdById])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  claimId       String?
+  reservationId String?
+  type          String                   // RECORDING | DOWNLOAD | RESERVATION | VIDEO_BUNDLE | CASH_SALE
+  amountCents   Int
+  status        String   @default("SIMULATED")
+  paymentMethod String?                  // SIMULATED | CASH | CARD
+  externalRef   String?
+  createdAt     DateTime @default(now())
+
+  claim       Claim?       @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  reservation Reservation? @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
   @@index([claimId])
+  @@index([reservationId])
   @@index([createdAt])
 }
 

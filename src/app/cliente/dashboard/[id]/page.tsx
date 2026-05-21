@@ -7,6 +7,7 @@ import { ROLES } from '@/lib/roles';
 import { formatCents } from '@/lib/money';
 import VideoPlayer from '@/components/VideoPlayer';
 import { BuyDownloadButton } from './BuyDownloadButton';
+import { SharePanel } from './SharePanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,17 @@ export default async function ClienteRecordingPage({ params }: { params: { id: s
   });
 
   if (!claim) notFound();
+
+  const existingShares = await prisma.shareLink.findMany({
+    where: { recordingId: params.id, createdById: session.user.id },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+  const existingAccountTokens = await prisma.accessToken.findMany({
+    where: { recordingId: params.id, createdById: session.user.id, kind: 'CLIENTE_SHARE' },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
 
   return (
     <div className="space-y-4">
@@ -40,7 +52,7 @@ export default async function ClienteRecordingPage({ params }: { params: { id: s
         <div>
           <div className="text-sm font-semibold">Descarga del archivo</div>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Si querés guardar el video sin internet, podés comprar el adicional para descargarlo.
+            Si querés guardar el video sin internet, comprá el adicional para descargarlo.
           </p>
         </div>
         {claim.hasDownloadAccess ? (
@@ -55,6 +67,25 @@ export default async function ClienteRecordingPage({ params }: { params: { id: s
           </div>
         )}
       </div>
+
+      <SharePanel
+        recordingId={claim.recording.id}
+        initialShares={existingShares.map((s) => ({
+          id: s.id,
+          token: s.token,
+          expiresAt: s.expiresAt.toISOString(),
+          isActive: s.isActive && s.expiresAt.getTime() > Date.now(),
+          viewCount: s.viewCount,
+        }))}
+        initialAccountTokens={existingAccountTokens.map((t) => ({
+          id: t.id,
+          code: t.code,
+          maxUses: t.maxUses,
+          usedCount: t.usedCount,
+          expiresAt: t.expiresAt?.toISOString() ?? null,
+          isActive: t.isActive,
+        }))}
+      />
     </div>
   );
 }

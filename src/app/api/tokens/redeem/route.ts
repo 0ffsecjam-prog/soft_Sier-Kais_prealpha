@@ -48,30 +48,40 @@ export async function POST(req: Request) {
       });
       if (existing) return { recordingId: token.recordingId, alreadyClaimed: true };
 
+      const pricePaidCents = token.priceOverrideCents ?? token.recording.priceCents;
+
       const claim = await tx.claim.create({
         data: {
           userId,
           recordingId: token.recordingId,
           tokenId: token.id,
-          pricePaidCents: token.recording.priceCents,
+          pricePaidCents,
         },
       });
 
-      await tx.payment.create({
-        data: {
-          claimId: claim.id,
-          type: 'RECORDING',
-          amountCents: token.recording.priceCents,
-          status: 'SIMULATED',
-        },
-      });
+      // No registramos Payment para shares gratuitos (CLIENTE_SHARE con monto 0).
+      if (!(token.kind === 'CLIENTE_SHARE' && pricePaidCents === 0)) {
+        const paymentType =
+          token.kind === 'ADMIN_CASH' ? 'CASH_SALE' : 'RECORDING';
+        const paymentMethod = token.kind === 'ADMIN_CASH' ? 'CASH' : 'SIMULATED';
+        const paymentStatus = token.kind === 'ADMIN_CASH' ? 'PAID' : 'SIMULATED';
+        await tx.payment.create({
+          data: {
+            claimId: claim.id,
+            type: paymentType,
+            amountCents: pricePaidCents,
+            status: paymentStatus,
+            paymentMethod,
+          },
+        });
+      }
 
       await tx.accessToken.update({
         where: { id: token.id },
         data: { usedCount: { increment: 1 } },
       });
 
-      return { recordingId: token.recordingId, alreadyClaimed: false };
+      return { recordingId: token.recordingId, alreadyClaimed: false, kind: token.kind };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     await logger.audit('Token canjeado', { code, userId, recordingId: result.recordingId, alreadyClaimed: result.alreadyClaimed }, userId);
