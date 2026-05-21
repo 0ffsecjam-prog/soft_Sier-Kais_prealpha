@@ -11,6 +11,11 @@ export function formatCents(cents: number, currency: string = 'ARS'): string {
   }
 }
 
+// Cap MVP: $1.000.000 ARS. Cabe holgado en Int32 (máx ~2.147B). Para precios
+// más altos habría que migrar la columna a BigInt en Prisma.
+export const MAX_PRICE_CENTS = 100_000_000;
+export const MAX_PRICE_ARS = MAX_PRICE_CENTS / 100;
+
 export function parseCents(input: string | number): number {
   if (typeof input === 'number') return Math.round(input * 100);
   const cleaned = input.replace(/[^\d.,-]/g, '').replace(',', '.');

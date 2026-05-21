@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { MAX_PRICE_ARS } from '@/lib/money';
 
 interface Props {
   courts: Array<{ id: string; name: string }>;
@@ -80,11 +81,11 @@ export function NewRecordingForm({ courts, defaultPriceCents, defaultDownloadFee
         </div>
         <div>
           <label className="label" htmlFor="price">Precio (ARS)</label>
-          <input id="price" type="number" min={0} step="0.01" value={priceArs} onChange={(e) => setPriceArs(e.target.value)} className="input" />
+          <input id="price" type="number" min={0} max={MAX_PRICE_ARS} step="0.01" value={priceArs} onChange={(e) => setPriceArs(e.target.value)} className="input" />
         </div>
         <div>
           <label className="label" htmlFor="fee">Adicional descarga (ARS)</label>
-          <input id="fee" type="number" min={0} step="0.01" value={feeArs} onChange={(e) => setFeeArs(e.target.value)} className="input" />
+          <input id="fee" type="number" min={0} max={MAX_PRICE_ARS} step="0.01" value={feeArs} onChange={(e) => setFeeArs(e.target.value)} className="input" />
         </div>
       </div>
       <div>
@@ -92,6 +93,7 @@ export function NewRecordingForm({ courts, defaultPriceCents, defaultDownloadFee
         <input id="file" required value={filePath} onChange={(e) => setFilePath(e.target.value)} className="input font-mono" placeholder="sample.mp4 o 2026/05/partido.mp4" />
         <p className="mt-1 text-xs text-gray-500">Debe existir en el directorio de storage configurado.</p>
       </div>
+      <p className="text-xs text-gray-500">Precio máx: ${MAX_PRICE_ARS.toLocaleString('es-AR')} ARS por límite de Int32 (Fase 2: BigInt).</p>
       {error && <div className="text-sm text-red-600">{error}</div>}
       <button type="submit" disabled={loading} className="btn btn-primary w-full">
         {loading ? 'Creando...' : 'Crear grabación'}
