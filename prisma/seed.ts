@@ -51,6 +51,8 @@ async function main() {
     create: {
       name: 'Complejo Los Álamos',
       address: 'Av. Siempre Viva 742, CABA',
+      lat: -34.6037,    // Obelisco, Buenos Aires (sample)
+      lng: -58.3816,
       ownerId: cancha.id,
       revenueSharePct: 7000,
     },
