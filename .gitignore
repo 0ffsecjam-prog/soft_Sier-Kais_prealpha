@@ -1,0 +1,50 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# next
+.next
+out
+next-env.d.ts
+
+# build
+build
+dist
+
+# misc
+.DS_Store
+*.pem
+.vscode
+.idea
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# tsbuildinfo
+*.tsbuildinfo
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# prisma local db
+/prisma/dev.db
+/prisma/dev.db-journal
+/prisma/migrations/dev.db
+/prisma/*.db
+/prisma/*.db-journal
+
+# local storage (videos and thumbnails NOT versioned)
+/storage/videos/*
+!/storage/videos/.gitkeep
+/storage/thumbnails/*
+!/storage/thumbnails/.gitkeep
+
+# coverage
+/coverage
