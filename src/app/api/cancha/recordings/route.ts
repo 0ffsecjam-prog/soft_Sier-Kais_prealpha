@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 import { ROLES } from '@/lib/roles';
 import { logger } from '@/lib/logger';
 import { getVideoStorage } from '@/lib/storage';
-import { parseCents } from '@/lib/money';
+import { parseCents, formatCents, MAX_PRICE_CENTS } from '@/lib/money';
 
 export const runtime = 'nodejs';
 
@@ -42,6 +42,13 @@ export async function POST(req: Request) {
   const exists = await storage.exists(parsed.data.filePath);
   const priceCents = parseCents(parsed.data.priceArs);
   const downloadFeeCents = parseCents(parsed.data.downloadFeeArs);
+
+  if (priceCents < 0 || priceCents > MAX_PRICE_CENTS) {
+    return NextResponse.json({ error: `El precio debe estar entre 0 y ${formatCents(MAX_PRICE_CENTS)}.` }, { status: 400 });
+  }
+  if (downloadFeeCents < 0 || downloadFeeCents > MAX_PRICE_CENTS) {
+    return NextResponse.json({ error: `El adicional debe estar entre 0 y ${formatCents(MAX_PRICE_CENTS)}.` }, { status: 400 });
+  }
 
   const rec = await prisma.recording.create({
     data: {
