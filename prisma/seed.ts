@@ -60,8 +60,8 @@ async function main() {
   let courts = existingCourts;
   if (existingCourts.length === 0) {
     courts = await Promise.all([
-      prisma.court.create({ data: { name: 'Cancha 1', complexId: complex.id } }),
-      prisma.court.create({ data: { name: 'Cancha 2', complexId: complex.id } }),
+      prisma.court.create({ data: { name: 'Cancha 1', complexId: complex.id, slotDurationMin: 60, pricePerSlotCents: 1200000, openingHour: 8, closingHour: 23 } }),
+      prisma.court.create({ data: { name: 'Cancha 2', complexId: complex.id, slotDurationMin: 60, pricePerSlotCents: 1500000, openingHour: 9, closingHour: 23 } }),
     ]);
   }
 

@@ -4,6 +4,7 @@ import { ROLES } from '@/lib/roles';
 import { prisma } from '@/lib/db';
 import { getComplexByOwnerId } from '@/lib/queries';
 import { NewCourtForm } from './NewCourtForm';
+import { CourtCard } from './CourtCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,19 +24,24 @@ export default async function CanchaCanchasPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Canchas físicas</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400">Subcampos dentro de {complex.name}.</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">Subcampos dentro de {complex.name}. Editá precio del turno y horarios para habilitar reservas.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {complex.courts.map((c) => (
-          <div key={c.id} className="card p-5">
-            <div className="text-xs uppercase tracking-wider text-gray-500">Cancha</div>
-            <div className="mt-1 font-semibold">{c.name}</div>
-            <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">{countMap.get(c.id) ?? 0} grabaciones</div>
-          </div>
+          <CourtCard
+            key={c.id}
+            id={c.id}
+            name={c.name}
+            recordingsCount={countMap.get(c.id) ?? 0}
+            slotDurationMin={c.slotDurationMin}
+            pricePerSlotCents={c.pricePerSlotCents}
+            openingHour={c.openingHour}
+            closingHour={c.closingHour}
+          />
         ))}
         {complex.courts.length === 0 && (
-          <div className="card p-5 text-sm text-gray-500">Aún no creaste canchas. Sumá la primera con el formulario de la derecha.</div>
+          <div className="card p-5 text-sm text-gray-500">Aún no creaste canchas. Sumá la primera con el formulario.</div>
         )}
       </div>
 

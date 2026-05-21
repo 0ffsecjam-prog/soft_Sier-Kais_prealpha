@@ -12,6 +12,8 @@ export default async function ClienteLayout({ children }: { children: React.Reac
       userEmail={session.user.email}
       nav={[
         { href: '/cliente/dashboard', label: 'Mis Partidos' },
+        { href: '/cliente/reservas', label: 'Mis Reservas' },
+        { href: '/cliente/reservar', label: 'Reservar' },
         { href: '/cliente/claim', label: 'Canjear código' },
       ]}
     >
