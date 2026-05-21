@@ -16,39 +16,27 @@ export default async function AdminComplexesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Complejos</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400">Editá el porcentaje de revenue share por complejo.</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">Configurá el revenue share y la ubicación geográfica de cada complejo.</p>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-900 text-left text-xs uppercase tracking-wider text-gray-500">
-              <tr>
-                <th className="px-4 py-3">Complejo</th>
-                <th className="px-4 py-3">Dueño</th>
-                <th className="px-4 py-3">Canchas</th>
-                <th className="px-4 py-3">Share Cancha</th>
-                <th className="px-4 py-3 w-32">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {complexes.map((c) => (
-                <ComplexRow
-                  key={c.id}
-                  id={c.id}
-                  name={c.name}
-                  ownerName={c.owner.name}
-                  ownerEmail={c.owner.email}
-                  courtsCount={c.courts.length}
-                  shareBp={c.revenueSharePct}
-                />
-              ))}
-              {complexes.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-500">No hay complejos cargados aún.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="space-y-3">
+        {complexes.map((c) => (
+          <ComplexRow
+            key={c.id}
+            id={c.id}
+            name={c.name}
+            ownerName={c.owner.name}
+            ownerEmail={c.owner.email}
+            address={c.address}
+            courtsCount={c.courts.length}
+            shareBp={c.revenueSharePct}
+            lat={c.lat}
+            lng={c.lng}
+          />
+        ))}
+        {complexes.length === 0 && (
+          <div className="card p-6 text-sm text-gray-500 text-center">No hay complejos cargados aún.</div>
+        )}
       </div>
     </div>
   );

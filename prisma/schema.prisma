@@ -37,6 +37,8 @@ model Complex {
   id               String   @id @default(cuid())
   name             String
   address          String
+  lat              Float?
+  lng              Float?
   ownerId          String   @unique
   revenueSharePct  Int      @default(7000)   // 70.00% en basis points
   createdAt        DateTime @default(now())

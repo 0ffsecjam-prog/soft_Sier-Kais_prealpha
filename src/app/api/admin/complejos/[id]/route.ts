@@ -7,7 +7,11 @@ import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
-const Body = z.object({ revenueSharePct: z.number().int().min(0).max(10000) });
+const Body = z.object({
+  revenueSharePct: z.number().int().min(0).max(10000).optional(),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
+});
 
 export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   const session = await auth();
@@ -19,11 +23,16 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   const parsed = Body.safeParse(raw);
   if (!parsed.success) return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
 
+  const data: Record<string, unknown> = {};
+  if (parsed.data.revenueSharePct !== undefined) data.revenueSharePct = parsed.data.revenueSharePct;
+  if (parsed.data.lat !== undefined) data.lat = parsed.data.lat;
+  if (parsed.data.lng !== undefined) data.lng = parsed.data.lng;
+
   const updated = await prisma.complex.update({
     where: { id: ctx.params.id },
-    data: { revenueSharePct: parsed.data.revenueSharePct },
+    data,
   });
 
-  await logger.audit('Revenue share actualizado', { complexId: updated.id, newBp: parsed.data.revenueSharePct }, session.user.id);
+  await logger.audit('Complex actualizado', { complexId: updated.id, fields: Object.keys(data) }, session.user.id);
   return NextResponse.json({ ok: true });
 }
