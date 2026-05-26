@@ -53,8 +53,11 @@ model Court {
   complexId           String
   slotDurationMin     Int      @default(60)
   pricePerSlotCents   Int      @default(0)
-  openingHour         Int      @default(8)   // hora local 0-23
-  closingHour         Int      @default(23)  // hora local 0-23 (último slot inicia antes)
+  openingHour         Int      @default(8)   // hora local 0-23 (default si no hay weeklySchedule)
+  closingHour         Int      @default(23)  // hora local 0-23
+  weeklySchedule      String?                // JSON: {sun,mon,tue,wed,thu,fri,sat}: {open,close,isOpen}
+  status              String   @default("ACTIVE")  // ACTIVE | MAINTENANCE | UNAVAILABLE
+  statusMessage       String?                // aviso libre para mostrar al cliente
   createdAt           DateTime @default(now())
 
   complex      Complex       @relation(fields: [complexId], references: [id], onDelete: Cascade)

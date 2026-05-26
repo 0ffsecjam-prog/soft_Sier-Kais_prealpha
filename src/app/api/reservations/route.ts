@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 import { ROLES } from '@/lib/roles';
 import { logger } from '@/lib/logger';
 import { getConfigInt } from '@/lib/config';
+import { COURT_STATUS, COURT_STATUS_LABEL, dayScheduleFor, defaultSchedule, parseSchedule } from '@/lib/courtSchedule';
 
 export const runtime = 'nodejs';
 
@@ -28,10 +29,26 @@ export async function POST(req: Request) {
   const court = await prisma.court.findUnique({ where: { id: parsed.data.courtId } });
   if (!court) return NextResponse.json({ error: 'Cancha no encontrada' }, { status: 404 });
 
+  if (court.status !== COURT_STATUS.ACTIVE) {
+    return NextResponse.json({ error: `La cancha no acepta reservas (${COURT_STATUS_LABEL[court.status] ?? court.status}).` }, { status: 409 });
+  }
+
   const startsAt = new Date(parsed.data.startsAt);
   const endsAt = new Date(startsAt.getTime() + court.slotDurationMin * 60 * 1000);
   if (startsAt.getTime() < Date.now()) {
     return NextResponse.json({ error: 'No se puede reservar en el pasado' }, { status: 400 });
+  }
+
+  // Validar contra el horario del día
+  const schedule = parseSchedule(court.weeklySchedule, defaultSchedule(court.openingHour, court.closingHour));
+  const day = dayScheduleFor(schedule, startsAt);
+  if (!day.isOpen) {
+    return NextResponse.json({ error: 'La cancha está cerrada ese día.' }, { status: 409 });
+  }
+  const startHour = startsAt.getHours();
+  const endHour = endsAt.getHours() === 0 ? 24 : endsAt.getHours() + (endsAt.getMinutes() > 0 ? 1 : 0);
+  if (startHour < day.open || endHour > day.close) {
+    return NextResponse.json({ error: 'Ese horario está fuera del horario de atención de la cancha.' }, { status: 409 });
   }
 
   const videoPriceCents = await getConfigInt('default_recording_price_cents');

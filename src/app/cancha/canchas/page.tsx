@@ -38,6 +38,9 @@ export default async function CanchaCanchasPage() {
             pricePerSlotCents={c.pricePerSlotCents}
             openingHour={c.openingHour}
             closingHour={c.closingHour}
+            weeklyScheduleJson={c.weeklySchedule}
+            status={c.status}
+            statusMessage={c.statusMessage}
           />
         ))}
         {complex.courts.length === 0 && (

@@ -34,6 +34,7 @@ export default async function ClienteReservarPage() {
             pricePerSlotCents: ct.pricePerSlotCents,
             openingHour: ct.openingHour,
             closingHour: ct.closingHour,
+            status: ct.status,
           })),
         }))}
       />
