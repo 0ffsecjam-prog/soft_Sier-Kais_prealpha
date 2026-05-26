@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth';
 import { ROLES } from '@/lib/roles';
 import { prisma } from '@/lib/db';
 import { formatCents } from '@/lib/money';
+import { getConfigInt } from '@/lib/config';
 import { BuyVideoButton } from './BuyVideoButton';
 import { CancelReservationButton } from '@/components/CancelReservationButton';
 
@@ -33,12 +34,17 @@ export default async function ClienteReservasPage() {
     : [];
   const claimedSet = new Set(claims.map((c) => c.recordingId));
 
+  const cancelMinHours = await getConfigInt('reservation_cancel_min_hours');
+  const cancelCutoffMs = cancelMinHours * 60 * 60 * 1000;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Mis Reservas</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Tus turnos pasados y futuros.</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Tus turnos pasados y futuros.{cancelMinHours > 0 && ` Cancelación gratis hasta ${cancelMinHours} h antes del turno.`}
+          </p>
         </div>
         <Link href="/cliente/reservar" className="btn btn-primary"><Calendar size={16} />Reservar cancha</Link>
       </div>
@@ -98,7 +104,7 @@ export default async function ClienteReservasPage() {
                     {rec && !claimed && (
                       <BuyVideoButton reservationId={r.id} priceCents={rec.priceCents} />
                     )}
-                    {r.status === 'CONFIRMED' && !past && (
+                    {r.status === 'CONFIRMED' && r.startsAt.getTime() - Date.now() > cancelCutoffMs && (
                       <CancelReservationButton reservationId={r.id} />
                     )}
                   </div>

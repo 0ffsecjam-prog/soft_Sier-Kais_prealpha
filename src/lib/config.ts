@@ -8,6 +8,7 @@ export const CONFIG_DEFAULTS = {
   token_max_uses_default: '20',
   max_upload_size_mb: '500',
   log_retention_days: '90',
+  reservation_cancel_min_hours: '2',
   app_currency: 'ARS',
   emulated_db_ip: '127.0.0.1',
 } as const;
