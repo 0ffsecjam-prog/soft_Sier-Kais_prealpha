@@ -29,7 +29,7 @@ export interface RevenueBreakdown {
 export function classifyRevenue(payments: PaymentLite[], sharePctBp: number): RevenueBreakdown {
   let video = 0, download = 0, reservation = 0;
   for (const p of payments) {
-    if (p.status === 'FAILED') continue;
+    if (p.status === 'FAILED' || p.status === 'REFUNDED') continue;
     switch (p.type) {
       case 'RECORDING':
       case 'CASH_SALE':
@@ -72,9 +72,10 @@ export async function getComplexMetrics(complexId: string, sharePctBp: number): 
   const courts = await prisma.court.findMany({ where: { complexId }, select: { id: true } });
   const courtIds = courts.map((c) => c.id);
 
+  const EXCLUDED = ['FAILED', 'REFUNDED'];
   const where = (since: Date) => ({
     createdAt: { gte: since },
-    status: { not: 'FAILED' },
+    status: { notIn: EXCLUDED },
     OR: [
       { claim: { recording: { courtId: { in: courtIds } } } },
       { reservation: { courtId: { in: courtIds } } },
@@ -127,7 +128,7 @@ export async function getAdminComplexMetrics(): Promise<AdminComplexRow[]> {
   const complexes = await prisma.complex.findMany({ select: { id: true, name: true, revenueSharePct: true } });
 
   const payments = await prisma.payment.findMany({
-    where: { createdAt: { gte: monthStart }, status: { not: 'FAILED' } },
+    where: { createdAt: { gte: monthStart }, status: { notIn: ['FAILED', 'REFUNDED'] } },
     select: {
       type: true, amountCents: true, status: true,
       claim: { select: { recording: { select: { court: { select: { complexId: true } } } } } },

@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 import { getComplexByOwnerId } from '@/lib/queries';
 import { formatCents } from '@/lib/money';
 import { parseLocalDate, toLocalDateString } from '@/lib/slots';
+import { CancelReservationButton } from '@/components/CancelReservationButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,6 +107,9 @@ export default async function CanchaReservasPage({ searchParams }: { searchParam
                           {r.status === 'CANCELLED' && <span className="badge badge-muted">Cancelada</span>}
                         </div>
                       </div>
+                      {r.status === 'CONFIRMED' && (
+                        <CancelReservationButton reservationId={r.id} />
+                      )}
                     </div>
                   ))}
                 </div>
