@@ -25,11 +25,11 @@ export default async function HomePage() {
           Plataforma de video para complejos deportivos: el jugador compra el video de su partido, lo ve online y lo descarga si quiere. La cancha lo gestiona en 2 clicks.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/register" className="btn btn-primary">Soy cliente — crear cuenta</Link>
+          <Link href="/login" className="btn btn-primary">Ingresar</Link>
           <Link href="/solicitar" className="btn btn-secondary">¿Tenés un complejo? Pedí el sistema</Link>
         </div>
         <div className="mt-3">
-          <Link href="/login" className="text-sm text-gray-500 hover:text-brand-600">Ya tengo cuenta → Iniciar sesión</Link>
+          <Link href="/register" className="text-sm text-gray-500 hover:text-brand-600">Soy cliente nuevo → Crear cuenta</Link>
         </div>
 
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4">
