@@ -25,9 +25,11 @@ export default async function HomePage() {
           Plataforma de video para complejos deportivos: el jugador compra el video de su partido, lo ve online y lo descarga si quiere. La cancha lo gestiona en 2 clicks.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/login" className="btn btn-primary">Soy cliente</Link>
-          <Link href="/login" className="btn btn-secondary">Soy una cancha</Link>
-          <Link href="/login" className="btn btn-ghost">Admin Tempel</Link>
+          <Link href="/register" className="btn btn-primary">Soy cliente — crear cuenta</Link>
+          <Link href="/solicitar" className="btn btn-secondary">¿Tenés un complejo? Pedí el sistema</Link>
+        </div>
+        <div className="mt-3">
+          <Link href="/login" className="text-sm text-gray-500 hover:text-brand-600">Ya tengo cuenta → Iniciar sesión</Link>
         </div>
 
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -36,11 +38,11 @@ export default async function HomePage() {
             <h3 className="mt-1 font-semibold">Mis Partidos</h3>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Reclamá tu código y miralo en cualquier dispositivo.</p>
           </div>
-          <div className="card p-5">
+          <Link href="/solicitar" className="card p-5 hover:border-brand-500 transition-colors block">
             <div className="text-xs uppercase tracking-wider text-gray-500">Cancha</div>
-            <h3 className="mt-1 font-semibold">Generar accesos</h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Un código por partido, reutilizable, opcionalmente con vencimiento.</p>
-          </div>
+            <h3 className="mt-1 font-semibold">Pedí el sistema</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Contanos de tu complejo y te contactamos para instalarlo.</p>
+          </Link>
           <div className="card p-5">
             <div className="text-xs uppercase tracking-wider text-gray-500">Admin</div>
             <h3 className="mt-1 font-semibold">Métricas y debug</h3>

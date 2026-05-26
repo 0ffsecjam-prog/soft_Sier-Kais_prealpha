@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 
 export function RegisterForm() {
-  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,12 +34,12 @@ export function RegisterForm() {
       redirect: false,
     });
     if (sr?.error) {
-      setError('Cuenta creada pero falló login automático. Probá iniciar sesión.');
+      setError('Cuenta creada pero falló el login automático. Probá iniciar sesión.');
       setLoading(false);
       return;
     }
-    router.push('/cliente/dashboard');
-    router.refresh();
+    // Navegación dura para que el server lea la cookie de sesión recién creada.
+    window.location.href = '/cliente/dashboard';
   }
 
   return (
