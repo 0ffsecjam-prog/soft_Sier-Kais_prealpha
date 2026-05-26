@@ -5,6 +5,7 @@ import { getVideoStorage } from '@/lib/storage';
 import { formatBytes } from '@/lib/storage/local';
 import { AlertTriangle, CheckCircle2, HardDrive } from 'lucide-react';
 import MetricCard from '@/components/MetricCard';
+import { detectFastStart, isMp4 } from '@/lib/mp4';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,15 @@ export default async function AdminStoragePage() {
   const missing = recordings.filter((r) => !fileSet.has(r.filePath));
   const referencedSet = new Set(recordings.map((r) => r.filePath));
   const orphans = files.filter((f) => !referencedSet.has(f.relativePath));
+
+  // Detección de faststart por archivo MP4 (barato: sólo cabeceras de boxes).
+  const fastStart = new Map<string, 'FASTSTART' | 'SLOW' | 'UNKNOWN'>();
+  await Promise.all(
+    files.filter((f) => isMp4(f.relativePath)).map(async (f) => {
+      fastStart.set(f.relativePath, await detectFastStart(f.absolutePath));
+    }),
+  );
+  const slowCount = Array.from(fastStart.values()).filter((v) => v === 'SLOW').length;
 
   return (
     <div className="space-y-6">
@@ -85,30 +95,50 @@ export default async function AdminStoragePage() {
       </div>
 
       <div className="card overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-800 font-semibold">Todos los archivos</div>
+        <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-800 font-semibold flex items-center justify-between gap-2">
+          <span>Todos los archivos</span>
+          {slowCount > 0 && (
+            <span className="badge badge-warn text-xs"><AlertTriangle size={11} />{slowCount} sin faststart</span>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-900 text-left text-xs uppercase tracking-wider text-gray-500">
               <tr>
                 <th className="px-4 py-2">Path</th>
                 <th className="px-4 py-2">Tamaño</th>
+                <th className="px-4 py-2">Playback</th>
                 <th className="px-4 py-2">Modificado</th>
               </tr>
             </thead>
             <tbody>
-              {files.map((f) => (
-                <tr key={f.relativePath} className="border-t border-gray-200 dark:border-gray-800">
-                  <td className="px-4 py-2"><code className="text-xs">{f.relativePath}</code></td>
-                  <td className="px-4 py-2">{formatBytes(f.sizeBytes)}</td>
-                  <td className="px-4 py-2 text-xs text-gray-500">{f.mtime.toLocaleString('es-AR')}</td>
-                </tr>
-              ))}
+              {files.map((f) => {
+                const fs = fastStart.get(f.relativePath);
+                return (
+                  <tr key={f.relativePath} className="border-t border-gray-200 dark:border-gray-800">
+                    <td className="px-4 py-2"><code className="text-xs">{f.relativePath}</code></td>
+                    <td className="px-4 py-2">{formatBytes(f.sizeBytes)}</td>
+                    <td className="px-4 py-2">
+                      {fs === 'FASTSTART' && <span className="badge badge-success" title="moov al inicio: arranca rápido">faststart</span>}
+                      {fs === 'SLOW' && <span className="badge badge-warn" title="moov al final: arranque lento, conviene re-mux con ffmpeg -movflags +faststart">lento</span>}
+                      {fs === 'UNKNOWN' && <span className="text-xs text-gray-400">—</span>}
+                      {!fs && <span className="text-xs text-gray-400">n/a</span>}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-gray-500">{f.mtime.toLocaleString('es-AR')}</td>
+                  </tr>
+                );
+              })}
               {files.length === 0 && (
-                <tr><td colSpan={3} className="px-4 py-10 text-center text-gray-500">Sin archivos en storage.</td></tr>
+                <tr><td colSpan={4} className="px-4 py-10 text-center text-gray-500">Sin archivos en storage.</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        {slowCount > 0 && (
+          <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-500">
+            Tip: para los marcados &quot;lento&quot;, re-muxealos con <code>ffmpeg -i in.mp4 -c copy -movflags +faststart out.mp4</code> para que arranquen al instante.
+          </div>
+        )}
       </div>
     </div>
   );

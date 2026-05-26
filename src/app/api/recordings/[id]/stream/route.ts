@@ -1,24 +1,15 @@
-import { promises as fs, createReadStream } from 'node:fs';
-import { extname } from 'node:path';
-import { Readable } from 'node:stream';
+import { promises as fs } from 'node:fs';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { ROLES } from '@/lib/roles';
 import { getVideoStorage } from '@/lib/storage';
 import { logger } from '@/lib/logger';
+import { fileResponse, videoContentType } from '@/lib/videoResponse';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MIME: Record<string, string> = {
-  '.mp4':  'video/mp4',
-  '.webm': 'video/webm',
-  '.mov':  'video/quicktime',
-  '.mkv':  'video/x-matroska',
-  '.m4v':  'video/x-m4v',
-};
-
-export async function GET(req: Request, ctx: { params: { id: string } }) {
+async function handle(req: Request, ctx: { params: { id: string } }, method: string) {
   const session = await auth();
   if (!session?.user) return new Response('Unauthorized', { status: 401 });
 
@@ -49,49 +40,27 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   let stat;
   try { stat = await fs.stat(absPath); }
   catch {
-    await logger.warn('Archivo de video no encontrado', { recordingId: recording.id, filePath: recording.filePath, absPath });
+    await logger.warn('Archivo de video no encontrado', { recordingId: recording.id, filePath: recording.filePath });
     return new Response('Archivo no encontrado en storage', { status: 404 });
   }
 
-  const size = stat.size;
-  const ext = extname(absPath).toLowerCase();
-  const contentType = MIME[ext] ?? 'application/octet-stream';
-  const range = req.headers.get('range');
-
-  if (range) {
-    const m = /^bytes=(\d+)-(\d*)$/.exec(range);
-    if (!m) {
-      return new Response('Range malformado', { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
-    }
-    const start = parseInt(m[1], 10);
-    const end = m[2] ? parseInt(m[2], 10) : Math.min(start + 1024 * 1024 - 1, size - 1);
-    if (start >= size || end >= size || start > end) {
-      return new Response('Range fuera de rango', { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
-    }
-    const chunkSize = end - start + 1;
-    const nodeStream = createReadStream(absPath, { start, end });
-    const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>;
-    return new Response(webStream, {
-      status: 206,
-      headers: {
-        'Content-Type': contentType,
-        'Content-Length': String(chunkSize),
-        'Content-Range': `bytes ${start}-${end}/${size}`,
-        'Accept-Ranges': 'bytes',
-        'Cache-Control': 'private, max-age=0',
-      },
-    });
-  }
-
-  const nodeStream = createReadStream(absPath);
-  const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>;
-  return new Response(webStream, {
-    status: 200,
-    headers: {
-      'Content-Type': contentType,
-      'Content-Length': String(size),
-      'Accept-Ranges': 'bytes',
-      'Cache-Control': 'private, max-age=0',
-    },
+  return fileResponse({
+    absPath,
+    size: stat.size,
+    mtimeMs: stat.mtimeMs,
+    contentType: videoContentType(absPath),
+    method,
+    rangeHeader: req.headers.get('range'),
+    ifRange: req.headers.get('if-range'),
+    signal: req.signal,
+    disposition: { type: 'inline' },
   });
+}
+
+export function GET(req: Request, ctx: { params: { id: string } }) {
+  return handle(req, ctx, 'GET');
+}
+
+export function HEAD(req: Request, ctx: { params: { id: string } }) {
+  return handle(req, ctx, 'HEAD');
 }

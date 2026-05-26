@@ -1,16 +1,16 @@
-import { promises as fs, createReadStream } from 'node:fs';
+import { promises as fs } from 'node:fs';
 import { basename, extname } from 'node:path';
-import { Readable } from 'node:stream';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { ROLES } from '@/lib/roles';
 import { getVideoStorage } from '@/lib/storage';
 import { logger } from '@/lib/logger';
+import { fileResponse } from '@/lib/videoResponse';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: Request, ctx: { params: { id: string } }) {
+async function handle(req: Request, ctx: { params: { id: string } }, method: string) {
   const session = await auth();
   if (!session?.user) return new Response('Unauthorized', { status: 401 });
 
@@ -43,17 +43,27 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
   const safeTitle = recording.title.replace(/[^\w\s.-]/g, '_').slice(0, 80).trim() || basename(absPath, ext);
   const fileName = `${safeTitle}${ext}`;
 
-  await logger.audit('Descarga iniciada', { userId: session.user.id, recordingId: recording.id, fileName }, session.user.id);
+  if (method === 'GET') {
+    await logger.audit('Descarga iniciada', { userId: session.user.id, recordingId: recording.id, fileName }, session.user.id);
+  }
 
-  const nodeStream = createReadStream(absPath);
-  const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>;
-  return new Response(webStream, {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': String(stat.size),
-      'Content-Disposition': `attachment; filename="${fileName}"`,
-      'Cache-Control': 'private, max-age=0',
-    },
+  return fileResponse({
+    absPath,
+    size: stat.size,
+    mtimeMs: stat.mtimeMs,
+    contentType: 'application/octet-stream',
+    method,
+    rangeHeader: req.headers.get('range'),
+    ifRange: req.headers.get('if-range'),
+    signal: req.signal,
+    disposition: { type: 'attachment', filename: fileName },
   });
+}
+
+export function GET(req: Request, ctx: { params: { id: string } }) {
+  return handle(req, ctx, 'GET');
+}
+
+export function HEAD(req: Request, ctx: { params: { id: string } }) {
+  return handle(req, ctx, 'HEAD');
 }
