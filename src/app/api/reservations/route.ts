@@ -51,6 +51,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Ese horario está fuera del horario de atención de la cancha.' }, { status: 409 });
   }
 
+  // Fecha bloqueada puntualmente
+  const dayMidnight = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate(), 0, 0, 0, 0);
+  const blocked = await prisma.courtBlockedDate.findUnique({
+    where: { courtId_date: { courtId: court.id, date: dayMidnight } },
+  });
+  if (blocked) {
+    return NextResponse.json({ error: `La cancha no está disponible ese día${blocked.reason ? ` (${blocked.reason})` : ''}.` }, { status: 409 });
+  }
+
   const videoPriceCents = await getConfigInt('default_recording_price_cents');
   const userId = session.user.id;
 

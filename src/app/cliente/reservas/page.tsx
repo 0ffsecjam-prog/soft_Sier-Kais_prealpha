@@ -5,6 +5,7 @@ import { ROLES } from '@/lib/roles';
 import { prisma } from '@/lib/db';
 import { formatCents } from '@/lib/money';
 import { BuyVideoButton } from './BuyVideoButton';
+import { CancelReservationButton } from '@/components/CancelReservationButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,12 +91,15 @@ export default async function ClienteReservasPage() {
                       <div className="text-amber-700 dark:text-amber-400 flex items-center gap-1.5"><Video size={14} />Video disponible — comprá el adicional para verlo.</div>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-start">
                     {rec && claimed && (
                       <Link href={`/cliente/dashboard/${rec.id}`} className="btn btn-primary text-sm"><Play size={14} />Ver video</Link>
                     )}
                     {rec && !claimed && (
                       <BuyVideoButton reservationId={r.id} priceCents={rec.priceCents} />
+                    )}
+                    {r.status === 'CONFIRMED' && !past && (
+                      <CancelReservationButton reservationId={r.id} />
                     )}
                   </div>
                 </div>

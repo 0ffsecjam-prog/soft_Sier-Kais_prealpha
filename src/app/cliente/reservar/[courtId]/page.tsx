@@ -36,12 +36,16 @@ export default async function ReservarCourtPage({
   const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
   const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
 
-  const existing = isActive ? await prisma.reservation.findMany({
+  const blockedDate = isActive ? await prisma.courtBlockedDate.findUnique({
+    where: { courtId_date: { courtId: court.id, date: dayStart } },
+  }) : null;
+
+  const existing = isActive && !blockedDate ? await prisma.reservation.findMany({
     where: { courtId: court.id, startsAt: { gte: dayStart, lte: dayEnd } },
     select: { startsAt: true, endsAt: true, status: true },
   }) : [];
 
-  const slots = isActive ? generateSlotsForDate(
+  const slots = isActive && !blockedDate ? generateSlotsForDate(
     date,
     { slotDurationMin: court.slotDurationMin, openingHour: day.open, closingHour: day.close, isOpen: day.isOpen },
     existing,
@@ -89,7 +93,11 @@ export default async function ReservarCourtPage({
             ))}
           </div>
 
-          {!day.isOpen ? (
+          {blockedDate ? (
+            <div className="card p-6 text-center text-sm text-gray-500">
+              La cancha no está disponible este día{blockedDate.reason ? ` (${blockedDate.reason})` : ''}. Probá otra fecha.
+            </div>
+          ) : !day.isOpen ? (
             <div className="card p-6 text-center text-sm text-gray-500">La cancha está cerrada este día. Probá otra fecha.</div>
           ) : (
             <SlotPicker

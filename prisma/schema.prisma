@@ -60,11 +60,25 @@ model Court {
   statusMessage       String?                // aviso libre para mostrar al cliente
   createdAt           DateTime @default(now())
 
-  complex      Complex       @relation(fields: [complexId], references: [id], onDelete: Cascade)
+  complex      Complex            @relation(fields: [complexId], references: [id], onDelete: Cascade)
   recordings   Recording[]
   reservations Reservation[]
+  blockedDates CourtBlockedDate[]
 
   @@index([complexId])
+}
+
+model CourtBlockedDate {
+  id        String   @id @default(cuid())
+  courtId   String
+  date      DateTime                  // medianoche local del día bloqueado
+  reason    String?
+  createdAt DateTime @default(now())
+
+  court     Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@unique([courtId, date])
+  @@index([courtId, date])
 }
 
 model Recording {
