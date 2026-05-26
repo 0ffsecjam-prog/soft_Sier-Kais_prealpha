@@ -2,12 +2,17 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, Pencil, AlertTriangle, X } from 'lucide-react';
+import { Save, Pencil, AlertTriangle, X, CalendarOff, Plus, Trash2 } from 'lucide-react';
 import { formatCents, MAX_PRICE_ARS } from '@/lib/money';
 import {
   COURT_STATUS, COURT_STATUS_LABEL, WEEKDAY_KEYS, WEEKDAY_LABELS,
   defaultSchedule, parseSchedule, type WeeklySchedule,
 } from '@/lib/courtSchedule';
+
+interface BlockedDate {
+  date: string;        // YYYY-MM-DD
+  reason: string | null;
+}
 
 interface Props {
   id: string;
@@ -20,6 +25,7 @@ interface Props {
   weeklyScheduleJson: string | null;
   status: string;
   statusMessage: string | null;
+  blockedDates: BlockedDate[];
 }
 
 export function CourtCard(props: Props) {
@@ -63,6 +69,31 @@ export function CourtCard(props: Props) {
     router.refresh();
   }
 
+  // ── Fechas bloqueadas
+  const [newBlockDate, setNewBlockDate] = useState('');
+  const [newBlockReason, setNewBlockReason] = useState('');
+  const [blockBusy, setBlockBusy] = useState(false);
+
+  async function addBlock() {
+    if (!newBlockDate) return;
+    setBlockBusy(true);
+    await fetch(`/api/cancha/courts/${props.id}/blocked-dates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: newBlockDate, reason: newBlockReason.trim() || null }),
+    });
+    setBlockBusy(false);
+    setNewBlockDate(''); setNewBlockReason('');
+    router.refresh();
+  }
+
+  async function removeBlock(date: string) {
+    setBlockBusy(true);
+    await fetch(`/api/cancha/courts/${props.id}/blocked-dates?date=${date}`, { method: 'DELETE' });
+    setBlockBusy(false);
+    router.refresh();
+  }
+
   const statusBadge = props.status === COURT_STATUS.ACTIVE
     ? 'badge-success' : props.status === COURT_STATUS.MAINTENANCE ? 'badge-warn' : 'badge-muted';
 
@@ -102,6 +133,13 @@ export function CourtCard(props: Props) {
             </div>
           ))}
         </div>
+
+        {props.blockedDates.length > 0 && (
+          <div className="mt-3 text-xs flex items-start gap-1.5 text-gray-500">
+            <CalendarOff size={13} className="mt-0.5 shrink-0" />
+            <span>{props.blockedDates.length} fecha{props.blockedDates.length > 1 ? 's' : ''} bloqueada{props.blockedDates.length > 1 ? 's' : ''}: {props.blockedDates.slice(0, 3).map((b) => b.date).join(', ')}{props.blockedDates.length > 3 ? '…' : ''}</span>
+          </div>
+        )}
       </div>
     );
   }
@@ -170,6 +208,28 @@ export function CourtCard(props: Props) {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="label flex items-center gap-1.5"><CalendarOff size={14} />Fechas bloqueadas (feriados / eventos)</div>
+        {props.blockedDates.length > 0 ? (
+          <div className="space-y-1 mb-2">
+            {props.blockedDates.map((b) => (
+              <div key={b.date} className="flex items-center gap-2 text-sm bg-gray-50 dark:bg-gray-900 rounded px-2 py-1">
+                <span className="font-mono">{b.date}</span>
+                {b.reason && <span className="text-xs text-gray-500 flex-1 truncate">{b.reason}</span>}
+                <button type="button" onClick={() => removeBlock(b.date)} disabled={blockBusy} className="ml-auto text-red-600 hover:text-red-700" title="Desbloquear"><Trash2 size={13} /></button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs text-gray-400 mb-2">No hay fechas bloqueadas.</div>
+        )}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input type="date" value={newBlockDate} onChange={(e) => setNewBlockDate(e.target.value)} className="input sm:w-44" />
+          <input value={newBlockReason} onChange={(e) => setNewBlockReason(e.target.value)} className="input flex-1" placeholder="Motivo (opcional)" maxLength={200} />
+          <button type="button" onClick={addBlock} disabled={blockBusy || !newBlockDate} className="btn btn-secondary text-sm"><Plus size={14} />Bloquear</button>
         </div>
       </div>
 

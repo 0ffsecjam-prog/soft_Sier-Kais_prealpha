@@ -44,6 +44,14 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
   const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
 
+  // Fecha bloqueada puntualmente (feriado/evento) → sin slots
+  const blocked = await prisma.courtBlockedDate.findUnique({
+    where: { courtId_date: { courtId: court.id, date: dayStart } },
+  });
+  if (blocked) {
+    return NextResponse.json({ court: courtInfo, closedToday: true, blockedReason: blocked.reason ?? 'Fecha no disponible', slots: [] });
+  }
+
   const existing = await prisma.reservation.findMany({
     where: { courtId: court.id, startsAt: { gte: dayStart, lte: dayEnd } },
     select: { startsAt: true, endsAt: true, status: true },

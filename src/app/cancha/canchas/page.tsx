@@ -20,6 +20,22 @@ export default async function CanchaCanchasPage() {
   });
   const countMap = new Map(recordingsByCourt.map((r) => [r.courtId, r._count._all]));
 
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const blocks = await prisma.courtBlockedDate.findMany({
+    where: { courtId: { in: complex.courts.map((c) => c.id) }, date: { gte: todayMidnight } },
+    orderBy: { date: 'asc' },
+  });
+  const blocksByCourt = new Map<string, Array<{ date: string; reason: string | null }>>();
+  for (const b of blocks) {
+    const list = blocksByCourt.get(b.courtId) ?? [];
+    list.push({
+      date: `${b.date.getFullYear()}-${String(b.date.getMonth() + 1).padStart(2, '0')}-${String(b.date.getDate()).padStart(2, '0')}`,
+      reason: b.reason,
+    });
+    blocksByCourt.set(b.courtId, list);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -41,6 +57,7 @@ export default async function CanchaCanchasPage() {
             weeklyScheduleJson={c.weeklySchedule}
             status={c.status}
             statusMessage={c.statusMessage}
+            blockedDates={blocksByCourt.get(c.id) ?? []}
           />
         ))}
         {complex.courts.length === 0 && (
