@@ -54,8 +54,10 @@ export default async function CanchaGrabacionesPage() {
               {recordings.map((r) => {
                 const fileOk = existMap.get(r.id);
                 return (
-                  <tr key={r.id} className="border-t border-gray-200 dark:border-gray-800">
-                    <td className="px-4 py-3 font-medium">{r.title}</td>
+                  <tr key={r.id} className="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                    <td className="px-4 py-3 font-medium">
+                      <Link href={`/cancha/grabaciones/${r.id}`} className="text-brand-700 dark:text-brand-300 hover:underline">{r.title}</Link>
+                    </td>
                     <td className="px-4 py-3">{r.court.name}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{new Date(r.recordedAt).toLocaleDateString('es-AR')}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{formatCents(r.priceCents)}</td>

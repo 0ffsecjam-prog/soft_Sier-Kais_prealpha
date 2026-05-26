@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { ROLES } from '@/lib/roles';
 import { logger } from '@/lib/logger';
+import { getConfigInt } from '@/lib/config';
 
 export const runtime = 'nodejs';
 
@@ -28,9 +29,17 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json({ ok: true, alreadyCancelled: true });
   }
 
-  // El cliente solo puede cancelar reservas futuras; la cancha/admin pueden cancelar siempre.
-  if (isOwnerClient && reservation.startsAt.getTime() <= Date.now()) {
-    return NextResponse.json({ error: 'No se puede cancelar una reserva que ya empezó o pasó. Contactá a la cancha.' }, { status: 409 });
+  // El cliente solo puede cancelar con una ventana mínima de antelación
+  // (configurable); la cancha/admin pueden cancelar siempre.
+  if (isOwnerClient) {
+    const minHours = await getConfigInt('reservation_cancel_min_hours');
+    const cutoffMs = reservation.startsAt.getTime() - minHours * 60 * 60 * 1000;
+    if (Date.now() > cutoffMs) {
+      const msg = minHours > 0
+        ? `Solo podés cancelar hasta ${minHours} h antes del turno. Contactá a la cancha.`
+        : 'No se puede cancelar una reserva que ya empezó o pasó. Contactá a la cancha.';
+      return NextResponse.json({ error: msg }, { status: 409 });
+    }
   }
 
   await prisma.$transaction([
