@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Building2, MapPin, Loader2, X } from 'lucide-react';
+import { Building2, MapPin, Loader2, X, AlertTriangle } from 'lucide-react';
 import { fmtDistanceKm, haversineKm } from '@/lib/geo';
 import { formatCents } from '@/lib/money';
+import { COURT_STATUS, COURT_STATUS_LABEL } from '@/lib/courtSchedule';
 
 interface CourtInfo {
   id: string;
@@ -13,6 +14,7 @@ interface CourtInfo {
   pricePerSlotCents: number;
   openingHour: number;
   closingHour: number;
+  status: string;
 }
 
 interface ComplexInfo {
@@ -110,13 +112,19 @@ export function NearbyComplexes({ complexes }: { complexes: ComplexInfo[] }) {
               )}
             </div>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {c.courts.map((court) => (
-                <Link key={court.id} href={`/cliente/reservar/${court.id}`} className="card p-4 hover:border-brand-500 transition-colors block">
-                  <div className="font-medium">{court.name}</div>
-                  <div className="mt-1 text-xs text-gray-500">{court.slotDurationMin} min · {court.openingHour}:00 – {court.closingHour}:00</div>
-                  <div className="mt-2 text-sm font-semibold text-brand-700 dark:text-brand-300">{formatCents(court.pricePerSlotCents)} / turno</div>
-                </Link>
-              ))}
+              {c.courts.map((court) => {
+                const active = court.status === COURT_STATUS.ACTIVE;
+                return (
+                  <Link key={court.id} href={`/cliente/reservar/${court.id}`} className={`card p-4 transition-colors block ${active ? 'hover:border-brand-500' : 'opacity-75 hover:border-amber-400'}`}>
+                    <div className="font-medium flex items-center justify-between gap-2">
+                      {court.name}
+                      {!active && <span className="badge badge-warn"><AlertTriangle size={10} />{COURT_STATUS_LABEL[court.status] ?? court.status}</span>}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">{court.slotDurationMin} min · {court.openingHour}:00 – {court.closingHour}:00</div>
+                    <div className="mt-2 text-sm font-semibold text-brand-700 dark:text-brand-300">{formatCents(court.pricePerSlotCents)} / turno</div>
+                  </Link>
+                );
+              })}
               {c.courts.length === 0 && <div className="text-sm text-gray-500 col-span-full">Aún no hay canchas en este complejo.</div>}
             </div>
           </div>

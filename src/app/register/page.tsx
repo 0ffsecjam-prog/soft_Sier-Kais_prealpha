@@ -22,6 +22,9 @@ export default function RegisterPage() {
           <p className="mt-6 text-sm text-center text-gray-600 dark:text-gray-400">
             ¿Ya tenés cuenta? <Link href="/login" className="text-brand-600 font-medium">Iniciá sesión</Link>
           </p>
+          <p className="mt-2 text-sm text-center text-gray-600 dark:text-gray-400">
+            ¿Sos un complejo deportivo? <Link href="/solicitar" className="text-brand-600 font-medium">Pedí el sistema</Link>
+          </p>
         </div>
       </div>
       <footer className="px-4 sm:px-8 py-4 text-xs text-gray-500 text-center">MVP local · Fase 1</footer>

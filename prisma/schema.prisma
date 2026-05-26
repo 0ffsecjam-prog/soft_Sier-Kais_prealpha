@@ -53,8 +53,11 @@ model Court {
   complexId           String
   slotDurationMin     Int      @default(60)
   pricePerSlotCents   Int      @default(0)
-  openingHour         Int      @default(8)   // hora local 0-23
-  closingHour         Int      @default(23)  // hora local 0-23 (último slot inicia antes)
+  openingHour         Int      @default(8)   // hora local 0-23 (default si no hay weeklySchedule)
+  closingHour         Int      @default(23)  // hora local 0-23
+  weeklySchedule      String?                // JSON: {sun,mon,tue,wed,thu,fri,sat}: {open,close,isOpen}
+  status              String   @default("ACTIVE")  // ACTIVE | MAINTENANCE | UNAVAILABLE
+  statusMessage       String?                // aviso libre para mostrar al cliente
   createdAt           DateTime @default(now())
 
   complex      Complex       @relation(fields: [complexId], references: [id], onDelete: Cascade)
@@ -198,6 +201,42 @@ model ConfigSetting {
   value       String
   description String?
   updatedAt   DateTime @updatedAt
+}
+
+model SignupRequest {
+  id              String   @id @default(cuid())
+  status          String   @default("NEW")   // NEW | CONTACTED | CONVERTED | REJECTED
+
+  // Contacto
+  contactName     String
+  email           String
+  phone           String
+  role            String?                     // cargo: dueño, encargado, etc.
+
+  // Complejo
+  businessName    String
+  province        String
+  city            String?
+  address         String?
+  numberOfCourts  Int
+  courtTypes      String                       // JSON array de tipos
+  surfaceType     String?                      // INDOOR | OUTDOOR | MIXED
+
+  // Operación / calificación
+  matchesPerWeek  String?                      // rango (texto)
+  hasCameras      String?                      // ALL | SOME | NONE
+  hasInternet     String?                      // YES | NO | PARTIAL
+  referralSource  String?
+  message         String?
+
+  // Gestión interna
+  adminNotes      String?
+  convertedUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Log {

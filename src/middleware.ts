@@ -5,7 +5,7 @@ import { ROLES, ROLE_HOME, isRole } from '@/lib/roles';
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = new Set<string>(['/', '/login', '/register']);
+const PUBLIC_PATHS = new Set<string>(['/', '/login', '/register', '/solicitar']);
 // /api/* hace su propio auth check internamente; el middleware no debe redirigir APIs a /login.
 // /claim/* es deep link de canje (decide según sesión).
 // /s/* es viewer público de ShareLink (24h, sin cuenta).

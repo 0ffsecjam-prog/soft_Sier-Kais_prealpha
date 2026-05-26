@@ -1,7 +1,8 @@
 export interface CourtSchedule {
   slotDurationMin: number;
-  openingHour: number;
-  closingHour: number;
+  openingHour: number;   // hora de apertura del día (ya resuelto por día de semana)
+  closingHour: number;   // hora de cierre del día
+  isOpen?: boolean;      // si el día está cerrado, no se generan slots
 }
 
 export interface Slot {
@@ -30,6 +31,7 @@ export function generateSlotsForDate(
   now: Date = new Date(),
 ): Slot[] {
   const slots: Slot[] = [];
+  if (schedule.isOpen === false) return slots;  // día cerrado
   const slotMs = schedule.slotDurationMin * 60 * 1000;
 
   // Construyo el día en zona local del server (en MVP asumimos misma zona)
