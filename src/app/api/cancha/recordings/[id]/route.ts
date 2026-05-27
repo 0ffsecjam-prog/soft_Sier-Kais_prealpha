@@ -6,6 +6,7 @@ import { ROLES } from '@/lib/roles';
 import { logger } from '@/lib/logger';
 import { getVideoStorage } from '@/lib/storage';
 import { parseCents, MAX_PRICE_CENTS } from '@/lib/money';
+import { deleteThumbnail } from '@/lib/thumbnail';
 
 export const runtime = 'nodejs';
 
@@ -62,6 +63,8 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     catch { return NextResponse.json({ error: 'Path inválido' }, { status: 400 }); }
     data.filePath = parsed.data.filePath;
     data.status = (await storage.exists(parsed.data.filePath)) ? 'READY' : 'UPLOADING';
+    // El thumbnail cacheado corresponde al archivo viejo: invalidarlo.
+    if (parsed.data.filePath !== owned.rec.filePath) await deleteThumbnail(ctx.params.id);
   }
 
   await prisma.recording.update({ where: { id: ctx.params.id }, data });
@@ -85,6 +88,7 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
     prisma.shareLink.updateMany({ where: { recordingId: ctx.params.id, isActive: true }, data: { isActive: false } }),
   ]);
 
+  await deleteThumbnail(ctx.params.id);
   await logger.audit('Recording borrada (soft)', { recordingId: ctx.params.id }, session.user.id);
   return NextResponse.json({ ok: true });
 }

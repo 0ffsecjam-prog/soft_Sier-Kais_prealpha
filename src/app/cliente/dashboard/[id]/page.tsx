@@ -46,7 +46,7 @@ export default async function ClienteRecordingPage({ params }: { params: { id: s
         <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">{new Date(claim.recording.recordedAt).toLocaleString('es-AR')}</div>
       </div>
 
-      <VideoPlayer src={`/api/recordings/${claim.recording.id}/stream`} title={claim.recording.title} />
+      <VideoPlayer src={`/api/recordings/${claim.recording.id}/stream`} poster={`/api/recordings/${claim.recording.id}/thumbnail`} title={claim.recording.title} />
 
       <div className="card p-5 space-y-4">
         <div>
