@@ -2,6 +2,7 @@ import { requireRole } from '@/lib/auth';
 import { ROLES } from '@/lib/roles';
 import { prisma } from '@/lib/db';
 import { getConfigInt } from '@/lib/config';
+import Pagination from '@/components/Pagination';
 import { CleanupButton } from './CleanupButton';
 
 export const dynamic = 'force-dynamic';
@@ -18,22 +19,27 @@ function levelBadge(l: string) {
   }
 }
 
-export default async function AdminLogsPage({ searchParams }: { searchParams: { level?: string; limit?: string } }) {
+export default async function AdminLogsPage({ searchParams }: { searchParams: { level?: string; limit?: string; page?: string } }) {
   await requireRole(ROLES.ADMIN);
 
   const level = searchParams.level && LEVELS.includes(searchParams.level as typeof LEVELS[number]) ? searchParams.level : 'ALL';
-  const limit = Math.min(500, Math.max(10, Number(searchParams.limit) || 100));
+  const pageSize = Math.min(500, Math.max(10, Number(searchParams.limit) || 100));
+  const page = Math.max(1, Number(searchParams.page) || 1);
+  const where = level === 'ALL' ? {} : { level };
 
-  const [logs, totalCount, retentionDays] = await Promise.all([
+  const [logs, filteredCount, totalCount, retentionDays] = await Promise.all([
     prisma.log.findMany({
-      where: level === 'ALL' ? {} : { level },
+      where,
       include: { user: { select: { email: true } } },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     }),
+    prisma.log.count({ where }),
     prisma.log.count(),
     getConfigInt('log_retention_days'),
   ]);
+  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
 
   return (
     <div className="space-y-6">
@@ -49,7 +55,7 @@ export default async function AdminLogsPage({ searchParams }: { searchParams: { 
             <select name="level" defaultValue={level} className="input text-sm w-32">
               {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
-            <select name="limit" defaultValue={String(limit)} className="input text-sm w-24">
+            <select name="limit" defaultValue={String(pageSize)} className="input text-sm w-24">
               {[50, 100, 200, 500].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
             <button className="btn btn-secondary text-sm">Filtrar</button>
@@ -89,6 +95,8 @@ export default async function AdminLogsPage({ searchParams }: { searchParams: { 
           </table>
         </div>
       </div>
+
+      <Pagination basePath="/admin/logs" page={page} totalPages={totalPages} total={filteredCount} params={{ level: level === 'ALL' ? undefined : level, limit: pageSize }} />
     </div>
   );
 }
