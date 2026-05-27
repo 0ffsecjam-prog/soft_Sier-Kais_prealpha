@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth';
 import { ROLES } from '@/lib/roles';
 import { prisma } from '@/lib/db';
 import { SIGNUP_STATUS_LABEL, parseCourtTypes } from '@/lib/signupOptions';
+import Pagination from '@/components/Pagination';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,19 +18,26 @@ function statusBadge(s: string) {
   }
 }
 
-export default async function AdminSolicitudesPage({ searchParams }: { searchParams: { status?: string } }) {
+const PAGE_SIZE = 50;
+
+export default async function AdminSolicitudesPage({ searchParams }: { searchParams: { status?: string; page?: string } }) {
   await requireRole(ROLES.ADMIN);
 
   const status = searchParams.status && STATUSES.includes(searchParams.status as typeof STATUSES[number]) ? searchParams.status : 'ALL';
+  const page = Math.max(1, Number(searchParams.page) || 1);
+  const where = status === 'ALL' ? {} : { status };
 
-  const [requests, counts] = await Promise.all([
+  const [requests, filteredCount, counts] = await Promise.all([
     prisma.signupRequest.findMany({
-      where: status === 'ALL' ? {} : { status },
+      where,
       orderBy: { createdAt: 'desc' },
-      take: 200,
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
+    prisma.signupRequest.count({ where }),
     prisma.signupRequest.groupBy({ by: ['status'], _count: { _all: true } }),
   ]);
+  const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
 
   const countMap = new Map(counts.map((c) => [c.status, c._count._all]));
   const newCount = countMap.get('NEW') ?? 0;
@@ -93,6 +101,8 @@ export default async function AdminSolicitudesPage({ searchParams }: { searchPar
           </table>
         </div>
       </div>
+
+      <Pagination basePath="/admin/solicitudes" page={page} totalPages={totalPages} total={filteredCount} params={{ status: status === 'ALL' ? undefined : status }} />
     </div>
   );
 }

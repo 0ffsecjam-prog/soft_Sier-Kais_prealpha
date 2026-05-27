@@ -6,19 +6,31 @@ import { prisma } from '@/lib/db';
 import { getComplexByOwnerId } from '@/lib/queries';
 import { formatCents } from '@/lib/money';
 import { getVideoStorage } from '@/lib/storage';
+import Pagination from '@/components/Pagination';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CanchaGrabacionesPage() {
+const PAGE_SIZE = 20;
+
+export default async function CanchaGrabacionesPage({ searchParams }: { searchParams: { page?: string } }) {
   const session = await requireRole(ROLES.CANCHA);
   const complex = await getComplexByOwnerId(session.user.id);
   if (!complex) return <div className="card p-6">Sin complejo asociado.</div>;
 
-  const recordings = await prisma.recording.findMany({
-    where: { court: { complexId: complex.id }, deletedAt: null },
-    include: { court: true, _count: { select: { claims: true, tokens: true } } },
-    orderBy: { recordedAt: 'desc' },
-  });
+  const page = Math.max(1, Number(searchParams.page) || 1);
+  const where = { court: { complexId: complex.id }, deletedAt: null };
+
+  const [recordings, total] = await Promise.all([
+    prisma.recording.findMany({
+      where,
+      include: { court: true, _count: { select: { claims: true, tokens: true } } },
+      orderBy: { recordedAt: 'desc' },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.recording.count({ where }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const storage = getVideoStorage();
   const exists = await Promise.all(
@@ -80,6 +92,8 @@ export default async function CanchaGrabacionesPage() {
           </table>
         </div>
       </div>
+
+      <Pagination basePath="/cancha/grabaciones" page={page} totalPages={totalPages} total={total} />
     </div>
   );
 }
