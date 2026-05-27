@@ -1,6 +1,8 @@
 import { requireRole } from '@/lib/auth';
 import { ROLES } from '@/lib/roles';
 import { prisma } from '@/lib/db';
+import { getConfigInt } from '@/lib/config';
+import { CleanupButton } from './CleanupButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,29 +24,38 @@ export default async function AdminLogsPage({ searchParams }: { searchParams: { 
   const level = searchParams.level && LEVELS.includes(searchParams.level as typeof LEVELS[number]) ? searchParams.level : 'ALL';
   const limit = Math.min(500, Math.max(10, Number(searchParams.limit) || 100));
 
-  const logs = await prisma.log.findMany({
-    where: level === 'ALL' ? {} : { level },
-    include: { user: { select: { email: true } } },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-  });
+  const [logs, totalCount, retentionDays] = await Promise.all([
+    prisma.log.findMany({
+      where: level === 'ALL' ? {} : { level },
+      include: { user: { select: { email: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    }),
+    prisma.log.count(),
+    getConfigInt('log_retention_days'),
+  ]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Logs</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Eventos persistidos en DB.</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {totalCount} eventos en DB · retención automática {retentionDays} días.
+          </p>
         </div>
-        <form className="flex items-center gap-2">
-          <select name="level" defaultValue={level} className="input text-sm w-40">
-            {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
-          <select name="limit" defaultValue={String(limit)} className="input text-sm w-28">
-            {[50, 100, 200, 500].map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-          <button className="btn btn-secondary text-sm">Filtrar</button>
-        </form>
+        <div className="flex items-center gap-2 flex-wrap">
+          <form className="flex items-center gap-2">
+            <select name="level" defaultValue={level} className="input text-sm w-32">
+              {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+            <select name="limit" defaultValue={String(limit)} className="input text-sm w-24">
+              {[50, 100, 200, 500].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <button className="btn btn-secondary text-sm">Filtrar</button>
+          </form>
+          <CleanupButton retentionDays={retentionDays} />
+        </div>
       </div>
 
       <div className="card overflow-hidden">

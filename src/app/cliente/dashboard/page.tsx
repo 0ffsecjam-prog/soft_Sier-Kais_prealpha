@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { ROLES } from '@/lib/roles';
 import { formatCents } from '@/lib/money';
 import { Play, Download, KeyRound } from 'lucide-react';
+import VideoThumb from '@/components/VideoThumb';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,9 +40,9 @@ export default async function ClienteDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {claims.map((c) => (
             <div key={c.id} className="card overflow-hidden flex flex-col">
-              <div className="aspect-video bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 flex items-center justify-center">
-                <Play size={36} className="text-white/80" />
-              </div>
+              <Link href={`/cliente/dashboard/${c.recording.id}`} className="block">
+                <VideoThumb src={`/api/recordings/${c.recording.id}/thumbnail`} alt={c.recording.title} />
+              </Link>
               <div className="p-4 flex-1 flex flex-col">
                 <div className="text-xs text-gray-500">{c.recording.court.complex.name} · {c.recording.court.name}</div>
                 <h3 className="mt-1 font-semibold leading-snug">{c.recording.title}</h3>
