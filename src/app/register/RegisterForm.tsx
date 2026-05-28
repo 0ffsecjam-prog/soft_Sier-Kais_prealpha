@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, signOut } from 'next-auth/react';
 
 export function RegisterForm() {
   const [name, setName] = useState('');
@@ -28,6 +28,8 @@ export function RegisterForm() {
       return;
     }
 
+    // Cierro cualquier sesión previa antes del auto-login (swap limpio).
+    await signOut({ redirect: false });
     const sr = await signIn('credentials', {
       email: email.trim().toLowerCase(),
       password,

@@ -11,6 +11,7 @@ export const CONFIG_DEFAULTS = {
   reservation_cancel_min_hours: '2',
   app_currency: 'ARS',
   emulated_db_ip: '127.0.0.1',
+  max_booking_days_advance: '28',
 } as const;
 
 export type ConfigKey = keyof typeof CONFIG_DEFAULTS;

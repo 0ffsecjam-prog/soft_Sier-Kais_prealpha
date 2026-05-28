@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { signIn, signOut } from 'next-auth/react';
 
 export function LoginForm({ callbackUrl, error: serverError }: { callbackUrl?: string; error?: string }) {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,6 +13,10 @@ export function LoginForm({ callbackUrl, error: serverError }: { callbackUrl?: s
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Cerrar cualquier sesión previa antes de iniciar la nueva.
+    // NextAuth difunde el signOut a otras pestañas y queda una sola cookie activa.
+    await signOut({ redirect: false });
 
     const res = await signIn('credentials', {
       email: email.trim().toLowerCase(),
@@ -29,8 +31,8 @@ export function LoginForm({ callbackUrl, error: serverError }: { callbackUrl?: s
     }
 
     const dest = callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/';
-    router.push(dest);
-    router.refresh();
+    // Navegación dura: descarta el estado cliente viejo y aplica la nueva sesión.
+    window.location.assign(dest);
   }
 
   return (

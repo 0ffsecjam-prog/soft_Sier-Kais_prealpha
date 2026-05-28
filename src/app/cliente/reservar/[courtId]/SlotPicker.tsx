@@ -28,7 +28,9 @@ export function SlotPicker({ courtId, courtName, complexName, slotPriceCents, vi
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const total = slotPriceCents + (includesVideo ? videoPriceCents : 0);
+  // Sólo cobramos el slot ahora. El video se cobra cuando esté listo
+  // (después del partido), al confirmarse vía /api/reservations/[id]/buy-video.
+  const total = slotPriceCents;
 
   async function confirm() {
     if (!selectedStartsAt) return;
@@ -92,13 +94,18 @@ export function SlotPicker({ courtId, courtName, complexName, slotPriceCents, vi
           <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-brand-400 cursor-pointer">
             <input type="checkbox" className="mt-1" checked={includesVideo} onChange={(e) => setIncludesVideo(e.target.checked)} />
             <div className="flex-1">
-              <div className="font-medium flex items-center gap-1.5"><Video size={14} />Sumar el video del partido (+{formatCents(videoPriceCents)})</div>
-              <div className="text-xs text-gray-500 mt-0.5">Una vez grabado el partido queda automáticamente en tu biblioteca. Si lo dejás para después podés comprarlo desde &quot;Mis Reservas&quot;.</div>
+              <div className="font-medium flex items-center gap-1.5"><Video size={14} />Reservar el video del partido (+{formatCents(videoPriceCents)})</div>
+              <div className="text-xs text-gray-500 mt-0.5">Te confirmamos la intención ahora y te cobramos el video cuando esté listo (después del partido), desde &quot;Mis Reservas&quot;. Así no pagás algo que todavía no existe.</div>
             </div>
           </label>
 
           <div className="border-t border-gray-200 dark:border-gray-800 pt-3 flex items-center justify-between">
-            <div className="text-sm text-gray-500">Total a pagar (simulado)</div>
+            <div>
+              <div className="text-sm text-gray-500">Total a pagar ahora (simulado)</div>
+              {includesVideo && (
+                <div className="text-xs text-gray-500 mt-0.5">+ {formatCents(videoPriceCents)} del video al confirmarse (después del partido)</div>
+              )}
+            </div>
             <div className="text-2xl font-bold">{formatCents(total)}</div>
           </div>
 
