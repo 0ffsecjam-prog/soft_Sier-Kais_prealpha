@@ -27,7 +27,14 @@ export default async function ReservarCourtPage({
   if (!court) notFound();
 
   const today = new Date();
-  const date = (searchParams.date && parseLocalDate(searchParams.date)) || new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const maxDaysAdvance = await getConfigInt('max_booking_days_advance');
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const maxDay = new Date(todayMid.getTime() + (maxDaysAdvance - 1) * 24 * 60 * 60 * 1000);
+  let date = (searchParams.date && parseLocalDate(searchParams.date)) || todayMid;
+  // Clampear ?date a la ventana de reserva (resuelve el bypass por URL).
+  if (date.getTime() < todayMid.getTime() || date.getTime() > maxDay.getTime()) {
+    date = todayMid;
+  }
 
   const isActive = court.status === COURT_STATUS.ACTIVE;
   const schedule = parseSchedule(court.weeklySchedule, defaultSchedule(court.openingHour, court.closingHour));
@@ -54,7 +61,7 @@ export default async function ReservarCourtPage({
   const videoPriceCents = await getConfigInt('default_recording_price_cents');
 
   const days: Array<{ date: string; label: string }> = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < maxDaysAdvance; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     days.push({ date: toLocalDateString(d), label: d.toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: 'short' }) });
   }

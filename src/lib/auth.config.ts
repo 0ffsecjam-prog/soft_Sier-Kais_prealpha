@@ -19,6 +19,19 @@ export const authConfig: NextAuthConfig = {
   trustHost: true,
   session: { strategy: 'jwt', maxAge: 60 * 60 * 24 * 7 },
   pages: { signIn: '/login' },
+  // Cookie de sesión con nombre fijo: una sola cookie determinística entre
+  // entornos (LAN HTTP / producción HTTPS) para evitar sesiones duplicadas.
+  cookies: {
+    sessionToken: {
+      name: 'sierkais.session',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
   providers: [],
   callbacks: {
     async jwt({ token, user }) {

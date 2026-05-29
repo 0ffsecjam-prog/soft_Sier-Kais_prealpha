@@ -29,7 +29,20 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      // Necesitamos un AccessToken sintético para satisfacer la FK del Claim.
+      // Si existe un VIDEO_BUNDLE PENDING para esta reserva, lo CONFIRMAMOS
+      // (es el pago del bundle pre-reservado). Si no hay bundle, es la compra
+      // a posteriori → creamos un Payment RECORDING confirmado.
+      // En MVP "confirmar" es simulado; en producción lo dispara la pasarela
+      // (webhook). En cualquier caso, el Claim se crea SOLO acá: el cliente
+      // no puede obtener acceso al video flipeando un booleano.
+      const pendingBundle = await tx.payment.findFirst({
+        where: { reservationId: reservation.id, type: 'VIDEO_BUNDLE', status: 'PENDING' },
+      });
+      const priceCents = pendingBundle
+        ? (reservation.videoPriceCents ?? recording.priceCents)
+        : recording.priceCents;
+
+      // AccessToken sintético para satisfacer la FK del Claim.
       let code = newAccessCode();
       for (let i = 0; i < 5; i++) {
         const c = await tx.accessToken.findUnique({ where: { code } });
@@ -53,19 +66,26 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
           userId: session.user.id,
           recordingId: recording.id,
           tokenId: synthetic.id,
-          pricePaidCents: recording.priceCents,
+          pricePaidCents: priceCents,
         },
       });
 
-      await tx.payment.create({
-        data: {
-          claimId: claim.id,
-          type: 'RECORDING',
-          amountCents: recording.priceCents,
-          status: 'SIMULATED',
-          paymentMethod: 'SIMULATED',
-        },
-      });
+      if (pendingBundle) {
+        await tx.payment.update({
+          where: { id: pendingBundle.id },
+          data: { status: 'PAID' },
+        });
+      } else {
+        await tx.payment.create({
+          data: {
+            claimId: claim.id,
+            type: 'RECORDING',
+            amountCents: priceCents,
+            status: 'PAID',
+            paymentMethod: 'SIMULATED',
+          },
+        });
+      }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (err) {
     await logger.error('buy-video tx error', { err: String(err) }, session.user.id);

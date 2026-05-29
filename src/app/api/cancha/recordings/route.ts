@@ -76,9 +76,18 @@ export async function POST(req: Request) {
     },
   });
 
-  // Si la reserva incluía video (bundle), creamos el Claim automáticamente
+  // Auto-claim del video: SÓLO si existe un Payment VIDEO_BUNDLE CONFIRMADO
+  // (status='PAID') para la reserva. No alcanza con `includesVideo` (que es
+  // controlable por el cliente y antes daba video gratis al flipear el bool).
+  // En producción, el bundle queda PAID cuando la pasarela confirma; en MVP
+  // queda PENDING hasta que el cliente lo confirma vía buy-video.
   let autoClaimed = false;
-  if (matchingReservation && matchingReservation.includesVideo) {
+  const bundlePaid = matchingReservation
+    ? await prisma.payment.findFirst({
+        where: { reservationId: matchingReservation.id, type: 'VIDEO_BUNDLE', status: 'PAID' },
+      })
+    : null;
+  if (matchingReservation && bundlePaid) {
     let code = '';
     const { newAccessCode } = await import('@/lib/tokens');
     for (let i = 0; i < 5; i++) {

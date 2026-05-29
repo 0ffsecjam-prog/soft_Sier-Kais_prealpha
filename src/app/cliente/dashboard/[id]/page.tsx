@@ -74,7 +74,7 @@ export default async function ClienteRecordingPage({ params }: { params: { id: s
           id: s.id,
           token: s.token,
           expiresAt: s.expiresAt.toISOString(),
-          isActive: s.isActive && s.expiresAt.getTime() > Date.now(),
+          isActive: s.isActive,
           viewCount: s.viewCount,
         }))}
         initialAccountTokens={existingAccountTokens.map((t) => ({

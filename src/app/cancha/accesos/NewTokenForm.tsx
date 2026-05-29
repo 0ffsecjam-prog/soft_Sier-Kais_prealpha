@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { KeyRound, Copy, Check } from 'lucide-react';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface Recording {
   id: string;
@@ -19,6 +20,7 @@ export function NewTokenForm({ recordings }: { recordings: Recording[] }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ code: string; link: string } | null>(null);
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+  const [copyErr, setCopyErr] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,7 +53,10 @@ export function NewTokenForm({ recordings }: { recordings: Recording[] }) {
   }
 
   async function copy(text: string, which: 'code' | 'link') {
-    try { await navigator.clipboard.writeText(text); setCopied(which); setTimeout(() => setCopied(null), 1500); } catch {}
+    setCopyErr(null);
+    const ok = await copyToClipboard(text);
+    if (ok) { setCopied(which); setTimeout(() => setCopied(null), 1500); }
+    else setCopyErr('No se pudo copiar. Seleccioná y copiá manualmente.');
   }
 
   if (recordings.length === 0) {
@@ -92,6 +97,7 @@ export function NewTokenForm({ recordings }: { recordings: Recording[] }) {
             <input readOnly value={result.link} className="input text-xs font-mono" onFocus={(e) => e.currentTarget.select()} />
             <button type="button" onClick={() => copy(result.link, 'link')} className="btn btn-secondary text-xs">{copied === 'link' ? <Check size={16} /> : <Copy size={16} />}</button>
           </div>
+          {copyErr && <div className="mt-2 text-xs text-red-600">{copyErr}</div>}
         </div>
       )}
     </form>

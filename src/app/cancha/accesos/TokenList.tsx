@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Copy, Check, Ban } from 'lucide-react';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface TokenRow {
   id: string;
@@ -19,9 +20,13 @@ interface TokenRow {
 export function TokenList({ tokens }: { tokens: TokenRow[] }) {
   const router = useRouter();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copyErrId, setCopyErrId] = useState<string | null>(null);
 
   async function copy(code: string, id: string) {
-    try { await navigator.clipboard.writeText(code); setCopiedId(id); setTimeout(() => setCopiedId(null), 1500); } catch {}
+    setCopyErrId(null);
+    const ok = await copyToClipboard(code);
+    if (ok) { setCopiedId(id); setTimeout(() => setCopiedId(null), 1500); }
+    else setCopyErrId(id);
   }
 
   async function disable(id: string) {
@@ -53,9 +58,12 @@ export function TokenList({ tokens }: { tokens: TokenRow[] }) {
               <div className="text-xs text-gray-500">{t.courtName} · canjes: {t.usedCount}{t.maxUses !== null ? `/${t.maxUses}` : ''}{t.expiresAt ? ` · vence ${new Date(t.expiresAt).toLocaleDateString('es-AR')}` : ''}</div>
             </div>
             <div className="flex gap-2 shrink-0">
-              <button onClick={() => copy(t.code, t.id)} className="btn btn-secondary text-xs" title="Copiar código">
-                {copiedId === t.id ? <Check size={14} /> : <Copy size={14} />}
-              </button>
+              <div className="flex flex-col items-end gap-1">
+                <button onClick={() => copy(t.code, t.id)} className="btn btn-secondary text-xs" title="Copiar código">
+                  {copiedId === t.id ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+                {copyErrId === t.id && <div className="text-[10px] text-red-600">No se pudo copiar</div>}
+              </div>
               {t.isActive && (
                 <button onClick={() => disable(t.id)} className="btn btn-secondary text-xs text-red-600" title="Desactivar"><Ban size={14} /></button>
               )}

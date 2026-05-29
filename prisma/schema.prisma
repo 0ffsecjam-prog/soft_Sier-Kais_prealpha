@@ -11,7 +11,7 @@ datasource db {
 // Role: ADMIN | CANCHA | CLIENTE
 // RecordingStatus: UPLOADING | READY | FAILED
 // PaymentType: RECORDING | DOWNLOAD | RESERVATION | VIDEO_BUNDLE | CASH_SALE
-// PaymentStatus: SIMULATED | PAID | FAILED | FREE
+// PaymentStatus: PENDING | SIMULATED | PAID | FAILED | FREE
 // PaymentMethod: SIMULATED | CASH | CARD
 // LogLevel: DEBUG | INFO | WARN | ERROR | AUDIT
 // TokenKind: CANCHA | CLIENTE_SHARE | ADMIN_CASH

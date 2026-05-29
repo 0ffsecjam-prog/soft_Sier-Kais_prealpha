@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Share2, Link as LinkIcon, KeyRound, Copy, Check, Ban, Eye, Clock } from 'lucide-react';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface ShareItem {
   id: string;
@@ -36,6 +37,7 @@ export function SharePanel({ recordingId, initialShares, initialAccountTokens }:
   const [shareError, setShareError] = useState<string | null>(null);
   const [lastShareUrl, setLastShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [copyErrKey, setCopyErrKey] = useState<string | null>(null);
 
   async function generateShareLink() {
     setGenerating(true);
@@ -54,7 +56,7 @@ export function SharePanel({ recordingId, initialShares, initialAccountTokens }:
   }
 
   async function revokeShareLink(token: string) {
-    if (!confirm('¿Desactivar este link? Quien lo tenga ya no podrá usarlo.')) return;
+    if (!confirm('¿Cancelar este link? Quien lo tenga ya no podrá usarlo.')) return;
     const res = await fetch(`/api/share/${token}`, { method: 'DELETE' });
     if (res.ok) router.refresh();
   }
@@ -89,7 +91,10 @@ export function SharePanel({ recordingId, initialShares, initialAccountTokens }:
   }
 
   async function copy(text: string, key: string) {
-    try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1500); } catch {}
+    setCopyErrKey(null);
+    const ok = await copyToClipboard(text);
+    if (ok) { setCopied(key); setTimeout(() => setCopied(null), 1500); }
+    else setCopyErrKey(key);
   }
 
   return (
@@ -123,44 +128,79 @@ export function SharePanel({ recordingId, initialShares, initialAccountTokens }:
           </div>
 
           {lastShareUrl && (
-            <div className="p-3 rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 flex items-center gap-2">
-              <input readOnly value={lastShareUrl} className="input text-xs font-mono" onFocus={(e) => e.currentTarget.select()} />
-              <button onClick={() => copy(lastShareUrl, 'last-link')} className="btn btn-secondary text-xs">
-                {copied === 'last-link' ? <Check size={14} /> : <Copy size={14} />}
-              </button>
+            <div className="space-y-1">
+              <div className="p-3 rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 flex items-center gap-2">
+                <input readOnly value={lastShareUrl} className="input text-xs font-mono" onFocus={(e) => e.currentTarget.select()} />
+                <button onClick={() => copy(lastShareUrl, 'last-link')} className="btn btn-secondary text-xs">
+                  {copied === 'last-link' ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </div>
+              {copyErrKey === 'last-link' && (
+                <div className="text-xs text-red-600">No se pudo copiar. Seleccioná el link y copialo a mano.</div>
+              )}
             </div>
           )}
 
-          {initialShares.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Links generados</div>
-              <div className="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg">
-                {initialShares.map((s) => {
-                  const url = typeof window !== 'undefined' ? `${window.location.origin}/s/${s.token}` : `/s/${s.token}`;
-                  return (
-                    <div key={s.id} className="p-3 flex flex-col sm:flex-row sm:items-center gap-2">
-                      <div className="flex-1 min-w-0">
-                        <code className="text-xs truncate block">{url}</code>
-                        <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                          <span className="inline-flex items-center gap-1"><Clock size={11} />Vence {new Date(s.expiresAt).toLocaleString('es-AR')}</span>
-                          <span className="inline-flex items-center gap-1"><Eye size={11} />{s.viewCount} vistas</span>
-                          {!s.isActive && <span className="badge badge-muted">Vencido / Inactivo</span>}
-                        </div>
-                      </div>
-                      <div className="flex gap-1 shrink-0">
-                        <button onClick={() => copy(url, s.id)} className="btn btn-secondary text-xs">
-                          {copied === s.id ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                        {s.isActive && (
-                          <button onClick={() => revokeShareLink(s.token)} className="btn btn-secondary text-xs text-red-600" title="Desactivar"><Ban size={14} /></button>
-                        )}
-                      </div>
+          {(() => {
+            const now = Date.now();
+            const activos = initialShares.filter((s) => s.isActive && new Date(s.expiresAt).getTime() > now);
+            const historial = initialShares.filter((s) => !s.isActive || new Date(s.expiresAt).getTime() <= now);
+            return (
+              <>
+                {activos.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Links activos</div>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg">
+                      {activos.map((s) => {
+                        const url = typeof window !== 'undefined' ? `${window.location.origin}/s/${s.token}` : `/s/${s.token}`;
+                        return (
+                          <div key={s.id} className="p-3 flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <code className="text-xs truncate block">{url}</code>
+                              <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                                <span className="inline-flex items-center gap-1"><Clock size={11} />Vence {new Date(s.expiresAt).toLocaleString('es-AR')}</span>
+                                <span className="inline-flex items-center gap-1"><Eye size={11} />{s.viewCount} vistas</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <div className="flex gap-1">
+                                <button onClick={() => copy(url, s.id)} className="btn btn-secondary text-xs">
+                                  {copied === s.id ? <Check size={14} /> : <Copy size={14} />}
+                                </button>
+                                <button onClick={() => revokeShareLink(s.token)} className="btn btn-secondary text-xs text-red-600" title="Cancelar link"><Ban size={14} /></button>
+                              </div>
+                              {copyErrKey === s.id && <div className="text-[10px] text-red-600">No se pudo copiar</div>}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                  </div>
+                )}
+                {historial.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Historial</div>
+                    <div className="border border-gray-200 dark:border-gray-800 rounded-lg divide-y divide-gray-100 dark:divide-gray-800 opacity-60">
+                      {historial.map((s) => {
+                        const cancelado = !s.isActive;
+                        const url = typeof window !== 'undefined' ? `${window.location.origin}/s/${s.token}` : `/s/${s.token}`;
+                        return (
+                          <div key={s.id} className="p-3 bg-gray-50 dark:bg-gray-900/40">
+                            <code className="text-xs truncate block text-gray-500 line-through">{url}</code>
+                            <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 items-center">
+                              <span className="badge badge-muted">{cancelado ? 'Cancelado' : 'Caducado'}</span>
+                              <span className="inline-flex items-center gap-1"><Clock size={11} />{cancelado ? 'Cancelado' : 'Venció'} {new Date(s.expiresAt).toLocaleString('es-AR')}</span>
+                              <span className="inline-flex items-center gap-1"><Eye size={11} />{s.viewCount} vistas</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 

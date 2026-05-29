@@ -7,6 +7,7 @@ import { ROLES } from '@/lib/roles';
 import { logger } from '@/lib/logger';
 import { getConfigInt } from '@/lib/config';
 import { COURT_STATUS, COURT_STATUS_LABEL, dayScheduleFor, defaultSchedule, parseSchedule } from '@/lib/courtSchedule';
+import { generateSlotsForDate } from '@/lib/slots';
 
 export const runtime = 'nodejs';
 
@@ -35,8 +36,19 @@ export async function POST(req: Request) {
 
   const startsAt = new Date(parsed.data.startsAt);
   const endsAt = new Date(startsAt.getTime() + court.slotDurationMin * 60 * 1000);
-  if (startsAt.getTime() < Date.now()) {
+  const now = Date.now();
+  if (startsAt.getTime() < now) {
     return NextResponse.json({ error: 'No se puede reservar en el pasado' }, { status: 400 });
+  }
+  // Ventana máxima de anticipación (configurable). Cierra el bypass por URL/Burp
+  // que mandaba fechas absurdas (p.ej. año 8959).
+  const maxDaysAdvance = await getConfigInt('max_booking_days_advance');
+  const maxWindowMs = maxDaysAdvance * 24 * 60 * 60 * 1000;
+  if (startsAt.getTime() > now + maxWindowMs) {
+    return NextResponse.json(
+      { error: `Solo podés reservar con hasta ${maxDaysAdvance} días de anticipación.` },
+      { status: 400 },
+    );
   }
 
   // Validar contra el horario del día
@@ -58,6 +70,19 @@ export async function POST(req: Request) {
   });
   if (blocked) {
     return NextResponse.json({ error: `La cancha no está disponible ese día${blocked.reason ? ` (${blocked.reason})` : ''}.` }, { status: 409 });
+  }
+
+  // Validar que startsAt corresponda a un slot REAL del calendario del día:
+  // alineado al slotDuration y dentro del horario abierto. Esto cierra el
+  // bypass por URL/Burp que mandaba horas arbitrarias / desalineadas.
+  const validSlots = generateSlotsForDate(
+    startsAt,
+    { slotDurationMin: court.slotDurationMin, openingHour: day.open, closingHour: day.close, isOpen: day.isOpen },
+    [],
+  );
+  const matchesSlot = validSlots.some((s) => s.startsAt.getTime() === startsAt.getTime());
+  if (!matchesSlot) {
+    return NextResponse.json({ error: 'Horario fuera del calendario de la cancha.' }, { status: 409 });
   }
 
   const videoPriceCents = await getConfigInt('default_recording_price_cents');
@@ -94,18 +119,24 @@ export async function POST(req: Request) {
           reservationId: reservation.id,
           type: 'RESERVATION',
           amountCents: court.pricePerSlotCents,
-          status: 'SIMULATED',
+          status: 'PAID',
           paymentMethod: 'SIMULATED',
         },
       });
 
       if (parsed.data.includesVideo) {
+        // Sólo registramos la INTENCIÓN del cliente: el pago queda PENDING.
+        // El acceso al video se otorga sólo al confirmarse este pago
+        // (ver api/reservations/[id]/buy-video). En producción ese confirm
+        // lo dispara la pasarela; en MVP es el "pago simulado" del cliente.
+        // Defensa contra mass-assignment: flipear includesVideo en el cliente
+        // ya NO entrega el video gratis.
         await tx.payment.create({
           data: {
             reservationId: reservation.id,
             type: 'VIDEO_BUNDLE',
             amountCents: videoPriceCents,
-            status: 'SIMULATED',
+            status: 'PENDING',
             paymentMethod: 'SIMULATED',
           },
         });

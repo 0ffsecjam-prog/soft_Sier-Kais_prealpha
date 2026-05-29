@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Save, UserPlus, Copy, Check, CheckCircle2 } from 'lucide-react';
 import { SIGNUP_STATUS, SIGNUP_STATUS_LABEL } from '@/lib/signupOptions';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface Props {
   id: string;
@@ -43,6 +44,7 @@ export function LeadManager({ id, status: initialStatus, adminNotes: initialNote
   const [convertError, setConvertError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyErr, setCopyErr] = useState<string | null>(null);
 
   async function convert() {
     if (!confirm('¿Crear la cuenta de Cancha con estos datos? Se generará un usuario y su complejo.')) return;
@@ -61,10 +63,10 @@ export function LeadManager({ id, status: initialStatus, adminNotes: initialNote
 
   async function copyCreds() {
     if (!credentials) return;
-    try {
-      await navigator.clipboard.writeText(`Email: ${credentials.email}\nContraseña: ${credentials.password}`);
-      setCopied(true); setTimeout(() => setCopied(false), 1500);
-    } catch {}
+    setCopyErr(null);
+    const ok = await copyToClipboard(`Email: ${credentials.email}\nContraseña: ${credentials.password}`);
+    if (ok) { setCopied(true); setTimeout(() => setCopied(false), 1500); }
+    else setCopyErr('No se pudo copiar automáticamente. Seleccioná y copiá manualmente.');
   }
 
   return (
@@ -129,6 +131,7 @@ export function LeadManager({ id, status: initialStatus, adminNotes: initialNote
               <button onClick={copyCreds} className="mt-2 btn btn-secondary text-xs">
                 {copied ? <Check size={14} /> : <Copy size={14} />}Copiar
               </button>
+              {copyErr && <div className="mt-1 text-xs text-red-600">{copyErr}</div>}
               <p className="mt-2 text-xs text-gray-500">Guardala ahora: la contraseña no se vuelve a mostrar.</p>
             </div>
           )}

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { KeyRound, Copy, Check } from 'lucide-react';
 import { MAX_PRICE_ARS } from '@/lib/money';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface RecordingOption {
   id: string;
@@ -25,6 +26,7 @@ export function AdminTokenForm({ recordings }: { recordings: RecordingOption[] }
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyErr, setCopyErr] = useState<string | null>(null);
 
   function onChangeRecording(id: string) {
     setRecordingId(id);
@@ -61,7 +63,12 @@ export function AdminTokenForm({ recordings }: { recordings: RecordingOption[] }
     router.refresh();
   }
 
-  async function copy() { try { await navigator.clipboard.writeText(result!); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {} }
+  async function copy() {
+    setCopyErr(null);
+    const ok = await copyToClipboard(result!);
+    if (ok) { setCopied(true); setTimeout(() => setCopied(false), 1500); }
+    else setCopyErr('No se pudo copiar automáticamente. Seleccioná el código y copialo a mano.');
+  }
 
   if (recordings.length === 0) {
     return <p className="mt-3 text-sm text-gray-500">No hay grabaciones cargadas.</p>;
@@ -108,6 +115,7 @@ export function AdminTokenForm({ recordings }: { recordings: RecordingOption[] }
           </button>
         </div>
       )}
+      {copyErr && <div className="text-xs text-red-600">{copyErr}</div>}
     </form>
   );
 }

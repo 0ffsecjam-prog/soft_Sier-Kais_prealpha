@@ -85,7 +85,11 @@ export default async function ClienteReservasPage() {
                 <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-800 flex flex-wrap items-center gap-3">
                   <div className="text-sm flex-1 min-w-0">
                     {!rec && !past && (
-                      <div className="text-gray-500">El video aparecerá luego del partido.</div>
+                      <div className="text-gray-500">
+                        {r.includesVideo
+                          ? 'Reservaste el video — te cobramos cuando esté listo.'
+                          : 'El video aparecerá luego del partido.'}
+                      </div>
                     )}
                     {!rec && past && (
                       <div className="text-gray-500">Esperando que la cancha suba la grabación...</div>
@@ -94,7 +98,11 @@ export default async function ClienteReservasPage() {
                       <div className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5"><Video size={14} />Video disponible en tu biblioteca.</div>
                     )}
                     {rec && !claimed && (
-                      <div className="text-amber-700 dark:text-amber-400 flex items-center gap-1.5"><Video size={14} />Video disponible — comprá el adicional para verlo.</div>
+                      <div className="text-amber-700 dark:text-amber-400 flex items-center gap-1.5"><Video size={14} />
+                        {r.includesVideo
+                          ? 'Video disponible — confirmá el pago para verlo.'
+                          : 'Video disponible — comprá el adicional para verlo.'}
+                      </div>
                     )}
                   </div>
                   <div className="flex gap-2 items-start">
